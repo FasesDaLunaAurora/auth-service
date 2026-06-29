@@ -426,3 +426,66 @@ Após N tentativas de login falhas (configurável via `.env`, padrão 5), bloque
 5. Suíte de testes conforme Seção 9.
 6. Um changelog breve, ao final da resposta, listando qualquer decisão de implementação que tenha sido necessária além do que esta especificação definiu explicitamente.
 
+---
+
+## 📌 Plano de Desenvolvimento e Entregas por Etapas
+
+Para garantir uma implementação robusta, modular e sem perda de contexto técnico, o desenvolvimento deste microsserviço foi estruturado de forma incremental através de **9 etapas sequenciais**. 
+
+Cada camada é implementada de forma completa, com tipagem forte (`type hints`) e tratamento defensivo de erros, avançando apenas após a validação da etapa anterior.
+
+### 📋 Cronograma de Implementação
+
+#### Etapa 1: Infraestrutura de Inicialização, Configurações e Banco de Dados
+Foco na criação da fundação do ecossistema e gerenciamento de variáveis de ambiente.
+*   `app/core/config.py`, `app/core/constants.py` e `app/core/logging.py`
+*   `app/database/base.py` e `app/database/session.py`
+*   `requirements.txt` / `pyproject.toml`
+*   Configuração base do Alembic (`alembic/env.py`, `alembic/script.py.mako`)
+
+#### Etapa 2: Modelos de Dados (SQLAlchemy 2.x) e Migrações
+Mapeamento declarativo das entidades de banco de dados e seus relacionamentos.
+*   `app/models/user_model.py`
+*   `app/models/role_model.py`
+*   `app/models/permission_model.py`
+*   `app/models/refresh_token_model.py`
+*   `app/models/session_model.py`
+
+#### Etapa 3: Contratos e Validações (Schemas Pydantic v2)
+Estruturação exata dos payloads de entrada (`Requests`) e saída (`Responses`) da API.
+*   Criação do pacote `app/schemas/` contendo esquemas isolados para: `User`, `Role`, `Permission`, `Auth` e `Session`.
+
+#### Etapa 4: Camada de Persistência (Repository Pattern)
+Isolamento total de consultas assíncronas do banco de dados através de repositórios dedicados.
+*   `app/repositories/user_repository.py`
+*   `app/repositories/role_repository.py`
+*   `app/repositories/permission_repository.py`
+
+#### Etapa 5: Segurança e Criptografia (Core Security)
+Definição dos componentes criptográficos do sistema de acordo com práticas OWASP.
+*   `app/core/security.py` (Mecanismos de hashing de senhas, emissão e decodificação de tokens JWT)
+
+#### Etapa 6: Regras de Negócio (Service Layer) e Exceções de Domínio
+Centralização das regras complexas como fluxos de login, geração de RBAC e ciclo de vida de sessões.
+*   `app/exceptions/` (Definição de exceções de domínio e middlewares de tratamento HTTP)
+*   Criação do pacote `app/services/` (`AuthService`, `UserService`, `RoleService`)
+
+#### Etapa 7: Middlewares de Segurança, Auditoria e Rate Limiting
+Interceptores globais de requisições para proteção de perímetro e conformidade.
+*   `app/middleware/rate_limit_middleware.py`
+*   `app/middleware/logging_middleware.py`
+*   `app/middleware/audit_middleware.py`
+
+#### Etapa 8: Injeção de Dependências e Rotas da API (FastAPI Controllers)
+Exposição dos endpoints HTTP e amarração arquitetural via injeção de dependências nativa.
+*   `app/api/dependencies/` (`auth_dependency.py`, `db_dependency.py`, `permission_dependency.py`)
+*   `app/api/routes/` (`auth_routes.py`, `user_routes.py`, `role_routes.py`, `permission_routes.py`, `session_routes.py`)
+*   `app/api/router.py` e ponto de entrada da aplicação `app/main.py`
+
+#### Etapa 9: DevOps, Orquestração e Documentação Final
+Fechamento do escopo para distribuição e automação do ambiente de produção.
+*   `Dockerfile` e `docker-compose.yml`
+*   `.env.example`
+*   `.github/workflows/` (Pipeline de CI automatizado com `ruff`, `mypy` e `pytest`)
+
+- Entendido? Se você entendeu a estratégia de camadas, me apresente apenas a ETAPA 1 agora e aguarde meu comando para a próxima.
