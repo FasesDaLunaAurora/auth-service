@@ -22,6 +22,7 @@ Centralizar autenticação e autorização em aplicações modernas.
 - Roles
 - Permissions
 - Controle de acesso
+- Limite de Requisições com bloqueio de IP
 
 ## Fluxo
 
