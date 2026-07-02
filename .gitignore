@@ -1,0 +1,49 @@
+# --- Ambiente / segredos ---
+.env
+.env.*
+!.env.example
+
+# --- Python ---
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+dist/
+*.egg-info/
+.eggs/
+
+# --- Ambientes virtuais ---
+.venv/
+venv/
+env/
+ENV/
+
+# --- Ferramentas de qualidade / testes ---
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+coverage.xml
+
+# --- Bancos de dados locais ---
+*.sqlite3
+*.db
+
+# --- Docker ---
+docker-compose.override.yml
+
+# --- IDEs / editores ---
+.vscode/
+.idea/
+*.swp
+
+# --- Sistema operacional ---
+.DS_Store
+Thumbs.db
+
+# --- Logs ---
+*.log

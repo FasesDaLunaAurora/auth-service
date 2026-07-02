@@ -1,359 +1,115 @@
 # Auth Service
 
-![Python](https://img.shields.io/badge/Python-3.11+-blue)
-![FastAPI](https://img.shields.io/badge/FastAPI-0.115+-009688)
-![PostgreSQL](https://img.shields.io/badge/PostgreSQL-17-blue)
-![SQLAlchemy](https://img.shields.io/badge/SQLAlchemy-2.x-red)
-![License](https://img.shields.io/badge/Licença-MIT-orange)
-![Status](https://img.shields.io/badge/Status-Estável-success)
-![Tests](https://img.shields.io/badge/Tests-Passing-success)
-![CI](https://img.shields.io/badge/CI-GitHub_Actions-blue)
+Microsserviço de **autenticação e autorização**, desacoplado de qualquer aplicação cliente, construído em **FastAPI** + **PostgreSQL** + **SQLAlchemy 2.x (async)**. Centraliza login, gestão de sessões, RBAC (roles/permissões) e MFA (TOTP), para que qualquer sistema cliente delegue essas responsabilidades via API em vez de reimplementá-las internamente.
 
-> Microsserviço de Autenticação e Autorização construído com FastAPI, projetado para ser plugado em qualquer sistema sem reescrever a camada de identidade.
+## Stack
 
----
+| Categoria | Tecnologia |
+|---|---|
+| Linguagem | Python 3.11+ |
+| Framework Web | FastAPI (async) |
+| ORM | SQLAlchemy 2.x (`Mapped`/`mapped_column`, async) |
+| Migrações | Alembic |
+| Banco de dados | PostgreSQL 17 |
+| Cache / Rate limiting | Redis |
+| Hash de senha | passlib (bcrypt/argon2) |
+| JWT | python-jose |
+| Testes | Pytest + pytest-asyncio + httpx |
+| Lint / Types | Ruff + Mypy (strict) |
 
-## 📖 Visão Geral
+## Arquitetura
 
-O **Auth Service** é um microsserviço independente que resolve autenticação, autorização e gerenciamento de usuários de forma centralizada.
-
-Em vez de reimplementar login, controle de acesso e gestão de identidade em cada novo projeto, este serviço assume essa responsabilidade por completo — permitindo que outras aplicações foquem exclusivamente em suas próprias regras de negócio.
-
-Funciona tanto como uma **plataforma de autenticação pronta para produção** quanto como **template base** para novos projetos pessoais, acadêmicos e profissionais que precisem de uma fundação de identidade segura desde o primeiro dia.
-
-A arquitetura foi construída em torno de cinco pilares:
-
-- Segurança
-- Escalabilidade
-- Organização
-- Manutenibilidade
-- Reutilização
-
----
-
-## ✨ Funcionalidades
-
-### Autenticação
-- Cadastro e login de usuários
-- Logout (individual e em todos os dispositivos)
-- Access Token e Refresh Token (JWT)
-- Rotação automática de Refresh Tokens
-- Recuperação e alteração de senha
-- Confirmação de e-mail
-- Gerenciamento de sessões com suporte a múltiplos dispositivos
-- MFA (Autenticação Multifator)
-
-### Autorização
-- RBAC (Role-Based Access Control) completo
-- Controle de permissões granulares
-- Middleware de autorização e proteção de rotas
-- Policies configuráveis
-
-### Gestão de Usuários
-- CRUD completo de usuários
-- Ativação, desativação e exclusão lógica de contas
-- Gerenciamento de perfil
-- Políticas de senha configuráveis
-
-### Segurança
-- Hash seguro de senhas com salt automático
-- Revogação de tokens
-- Rate limiting e bloqueio por IP
-- Proteção contra força bruta, credential stuffing e password spraying
-- Auditoria e logs de segurança
-- Validação de entrada, headers de segurança e cookies seguros
-- Proteção contra CSRF e XSS
-
-### Administração
-- Gerenciamento de Roles e Permissions
-- Administração de usuários e monitoramento de sessões
-- Auditoria administrativa
-
----
-
-## 🚀 Casos de Uso
-
-O Auth Service é adequado para:
-
-- APIs REST e arquiteturas em microsserviços
-- Sistemas corporativos e plataformas SaaS
-- Aplicações web, mobile e desktop
-- Projetos pessoais e acadêmicos que precisam de uma base de autenticação sólida sem esforço extra
-
----
-
-## ❓ Por que um microsserviço de autenticação?
-
-Conforme uma aplicação cresce, manter autenticação acoplada ao sistema principal se torna um ponto de fricção. Separar essa responsabilidade em um serviço dedicado traz:
-
-- Centralização da segurança
-- Reutilização entre múltiplos projetos
-- Escalabilidade e implantação independentes
-- Padronização dos mecanismos de autenticação
-- Gerenciamento centralizado de usuários
-- Separação clara entre identidade e regras de negócio
-
----
-
-## 🏗️ Arquitetura
-
-A arquitetura segue princípios de **Clean Architecture** e **Domain-Oriented Design**, organizada em camadas com responsabilidades bem definidas. Cada camada depende apenas da camada imediatamente inferior — nunca o contrário.
+Clean Architecture com regra de dependência estrita entre camadas:
 
 ```text
-                           Cliente
-                               │
-                      Requisição HTTP
-                               │
-                               ▼
-                     ┌──────────────────┐
-                     │     FastAPI      │
-                     │   (Controllers)  │
-                     └────────┬─────────┘
-                              │
-                              ▼
-                    Camada de Dependências
-          (Autenticação, Autorização, Validação)
-                              │
-                              ▼
-                     Camada de Serviços
-                  (Regras de Negócio)
-                              │
-                              ▼
-                  Camada de Repositórios
-                              │
-                              ▼
-                     PostgreSQL Database
+API (routes) → Services → Repositories → Database
 ```
 
-### Princípios arquiteturais
+- `api/` — controllers HTTP e injeção de dependências (FastAPI `Depends`).
+- `services/` — toda regra de negócio; nunca importa `Request`/`HTTPException`.
+- `repositories/` — apenas `SELECT`/`INSERT`/`UPDATE`/`DELETE`, sem regra de negócio.
+- `models/` — entidades SQLAlchemy.
+- `schemas/` — contratos Pydantic v2 de entrada/saída da API.
+- `security/` — JWT, hashing de senha, MFA (TOTP), OAuth2.
+- `middleware/` — rate limiting, logging estruturado, auditoria.
+- `exceptions/` — exceções de domínio e sua tradução para HTTP.
+- `integrations/` — Redis, SMTP, providers OAuth externos.
 
-- Separação de responsabilidades (Separation of Concerns)
-- Clean Architecture e SOLID
-- Dependency Injection
-- Repository Pattern e Service Layer
-- Programação defensiva e Fail Fast
-- Segurança como decisão de design, não como adição posterior
+## Como rodar
 
-### Responsabilidade de cada camada
-
-| Camada | Responsabilidade |
-|---------|------------------|
-| API | Receber requisições HTTP |
-| Dependencies | Autenticação e autorização |
-| Services | Regras de negócio |
-| Repositories | Persistência |
-| Models | Entidades |
-| Schemas | Contratos da API |
-| Security | Infraestrutura de segurança |
-| Middleware | Interceptação de requisições |
-| Database | Conexão e sessões |
-| Core | Configuração global |
-
-> **Regra de dependência:** o fluxo sempre aponta para baixo (`API → Services → Repositories → Database`). Repositories nunca conhecem Services, e Services nunca conhecem detalhes de HTTP.
-
----
-
-## 📂 Estrutura do Projeto
-
-```text
-auth-service/
-│
-├── alembic/                  # Migrações do banco de dados
-│
-├── app/
-│   ├── api/
-│   │   ├── routes/
-│   │   ├── dependencies/
-│   │   └── router.py
-│   │
-│   ├── core/                 # Configurações, logging, constantes
-│   ├── database/             # Conexão e sessões
-│   ├── middleware/           # Rate limiting, logging, auditoria
-│   ├── models/                # Entidades (User, Role, Permission, ...)
-│   ├── repositories/          # Acesso a dados
-│   ├── schemas/               # Contratos da API
-│   ├── security/               # JWT, hashing, MFA, OAuth2
-│   ├── services/               # Regras de negócio
-│   ├── utils/                  # Funções auxiliares genéricas
-│   ├── exceptions/             # Tratamento centralizado de erros
-│   ├── integrations/           # Redis, SMTP, OAuth Providers
-│   └── main.py
-│
-├── tests/                    # Testes unitários, integração e API
-├── docker/
-├── docs/
-├── scripts/
-│
-├── .env.example
-├── docker-compose.yml
-├── pyproject.toml
-└── README.md
-```
-
----
-
-## 🔄 Fluxo de Autenticação
-
-```text
-Cliente → POST /login → API → AuthenticationService
-  → busca usuário → valida senha
-  → gera Access Token e Refresh Token → salva sessão
-  → resposta com Access Token e Refresh Token
-```
-
-## 🔐 Fluxo de Autorização
-
-```text
-Cliente → Authorization: Bearer Token → Middleware
-  → extrai token → valida assinatura → verifica expiração
-  → carrega usuário, roles e permissions
-  → valida acesso → Endpoint
-```
-
----
-
-## 🔒 Segurança
-
-A segurança segue o princípio **Security by Design** e as recomendações da **OWASP**, com:
-
-- Menor Privilégio e Defesa em Profundidade
-- Secure by Default, Fail Fast e Fail Secure
-- Validação de todas as entradas — nunca confiar no cliente
-
-**Autenticação** baseada em JWT, com Access Token, Refresh Token, rotação e revogação de tokens, controle de sessões simultâneas e logout em todos os dispositivos.
-
-**Autorização** baseada em RBAC:
-
-```text
-Usuário → Role → Permissions → Recurso protegido
-```
-
-**Senhas** nunca armazenadas em texto puro — hash seguro com salt automático, políticas de senha e expiração configurável.
-
-**Proteções implementadas** contra Brute Force, Credential Stuffing, Password Spraying, Token Replay, Session Hijacking, CSRF, XSS, SQL Injection e Enumeration Attacks.
-
-**Auditoria** de eventos críticos: login, logout, alteração de senha, criação de usuários, alteração de permissões, revogação de tokens e tentativas de acesso inválidas.
-
-**Configuração** via variáveis de ambiente — nenhuma informação sensível (secrets, credenciais, chaves privadas) é armazenada no código.
-
----
-
-## 🚀 Instalação
-
-### Clonando o projeto
-
-```bash
-git clone https://github.com/<usuario>/auth-service.git
-cd auth-service
-```
-
-### Criando o ambiente virtual
-
-```bash
-python -m venv .venv
-```
-
-**Windows**
-```powershell
-.\.venv\Scripts\Activate.ps1
-```
-
-**Linux/macOS**
-```bash
-source .venv/bin/activate
-```
-
-### Instalando dependências
-
-```bash
-pip install -U pip
-pip install -r requirements.txt
-```
-
-### Configurando variáveis de ambiente
+### Com Docker (recomendado)
 
 ```bash
 cp .env.example .env
+# edite .env e defina um JWT_SECRET_KEY forte, ex: openssl rand -hex 32
+docker compose up --build
 ```
 
-Edite o `.env` com os valores do seu ambiente (banco de dados, secrets, SMTP, OAuth, etc).
+A API sobe em `http://localhost:8000`. Documentação interativa (fora de produção) em `/docs` e `/redoc`.
 
-### Executando migrações
+### Localmente (sem Docker)
+
+Requer PostgreSQL 17 e Redis rodando localmente.
 
 ```bash
+python -m venv .venv && source .venv/bin/activate
+pip install ".[dev]"
+cp .env.example .env  # ajuste DATABASE_URL/REDIS_URL para localhost
 alembic upgrade head
-```
-
-### Executando a aplicação
-
-```bash
 uvicorn app.main:app --reload
 ```
 
-### Executando com Docker
+## Testes
 
 ```bash
-docker-compose up --build
+pytest --cov=app --cov-report=term-missing
 ```
 
----
-
-## 🧪 Testes
-
-O projeto possui cobertura de testes unitários, de integração, de API e de segurança.
+## Qualidade de código
 
 ```bash
-pytest
+ruff check .          # lint
+ruff format --check . # formatação
+mypy app              # checagem de tipos (strict)
 ```
 
-CI configurado via **GitHub Actions**, executando automaticamente lint, type-checking e a suíte de testes em cada push e pull request.
+## Principais endpoints
 
----
+| Método | Rota | Descrição |
+|---|---|---|
+| POST | `/api/v1/auth/register` | Cadastro de usuário |
+| POST | `/api/v1/auth/login` | Login (retorna tokens ou desafio MFA) |
+| POST | `/api/v1/auth/refresh` | Rotaciona o refresh token |
+| POST | `/api/v1/auth/logout` | Revoga a sessão atual |
+| GET | `/api/v1/users/me` | Usuário autenticado |
+| GET | `/api/v1/sessions` | Sessões ativas do usuário |
+| POST | `/api/v1/roles` | Cria uma role (RBAC) |
 
-## 📚 Tecnologias
+Contrato completo de endpoints, modelagem de dados e fluxos de segurança: ver a especificação técnica do projeto.
 
-| Categoria | Stack |
-|---|---|
-| Backend | Python, FastAPI, SQLAlchemy, Alembic, PostgreSQL |
-| Segurança | JWT, Password Hashing, RBAC, Refresh Tokens, MFA, OAuth2, OpenID Connect |
-| Infraestrutura | Docker, Docker Compose |
-| Observabilidade | OpenTelemetry, Métricas |
-| Ferramentas | Pytest, Ruff, Mypy, GitHub Actions |
+## Segurança
 
----
+- Senhas com hash bcrypt/argon2, nunca em texto puro.
+- JWT assinado (HS256 por padrão), secret via variável de ambiente.
+- Refresh tokens armazenados apenas como hash SHA-256.
+- Rotação de refresh token com proteção contra *replay* (reuso revoga todas as sessões).
+- Bloqueio de conta após tentativas de login malsucedidas.
+- Rate limiting por IP nas rotas de autenticação (Redis).
+- Headers de segurança (`X-Frame-Options`, `HSTS`, etc.) em toda resposta.
+- Logs de auditoria estruturados, nunca contendo senhas/tokens em texto puro.
 
-## 🎓 Conceitos Aplicados
+## Changelog de decisões de implementação
 
-Este projeto é também uma referência prática sobre:
+Este projeto foi gerado a partir de uma especificação técnica detalhada. Onde a especificação era ambígua, incompleta ou internamente contraditória, as decisões tomadas foram documentadas diretamente nos arquivos afetados (comentários de "Nota de decisão") e resumidas a seguir:
 
-- Arquitetura de Microsserviços e Clean Architecture
-- Segurança de APIs seguindo recomendações OWASP
-- Autenticação (JWT) e Autorização (RBAC)
-- FastAPI, SQLAlchemy, Alembic e PostgreSQL em produção
-- Testes automatizados e pipelines de CI/CD
-
----
-
-## 🤝 Contribuindo
-
-Contribuições são bem-vindas! Para contribuir:
-
-1. Faça um fork do projeto
-2. Crie uma branch para sua feature (`git checkout -b feature/nova-funcionalidade`)
-3. Commit suas mudanças (`git commit -m 'feat: adiciona nova funcionalidade'`)
-4. Faça push para a branch (`git push origin feature/nova-funcionalidade`)
-5. Abra um Pull Request
-
-Sugestões, correções e melhorias podem ser enviadas via Issues e Pull Requests.
-
----
-
-## 📄 Licença
-
-Distribuído sob a licença **MIT**. Veja o arquivo [LICENSE](LICENSE) para mais detalhes — uso livre em projetos pessoais, acadêmicos e comerciais.
-
----
-
-## 🌟 Considerações Finais
-
-O Auth Service elimina a necessidade de reconstruir a infraestrutura de autenticação em cada novo projeto. Mais do que uma API de login, é uma plataforma completa de autenticação e autorização, pronta para servir como base de aplicações modernas ou como template para acelerar o início de novos sistemas — sem abrir mão de segurança, escalabilidade ou boas práticas de engenharia.
+1. **Sobreposição `core/security.py` vs. `security/`**: primitivas puras (passlib/jose/hashlib) ficaram em `core/security.py`; a camada de domínio de segurança (`JWTHandler`, `PasswordHandler`, `MFAHandler`, `OAuth2Handler`) ficou em `security/`, evitando duplicar configuração criptográfica.
+2. **Campos de MFA ausentes na modelagem de dados**: a especificação define os endpoints `/auth/mfa/*`, mas não os campos correspondentes em `User` — adicionados `mfa_enabled`/`mfa_secret`.
+3. **`session_schema.py` inexistente na árvore de pastas**: schemas de `Session` foram colocados em `auth_schema.py`.
+4. **Repositórios/serviços/integrações "adiantados"**: `refresh_token_repository.py`, `session_repository.py`, `permission_service.py`, `session_service.py`, `email_client.py` e `redis_client.py` não estavam explicitamente no cronograma de etapas, mas são exigidos pela árvore de pastas e por dependências diretas de outros componentes — gerados assim que necessários.
+5. **MFA (TOTP) implementado apenas com a *standard library*** (`hmac`, `base64`, `struct`), sem adicionar `pyotp`, respeitando a stack tecnológica travada pela Seção 2.
+6. **Claim `sid` (session id) adicionada aos tokens**: necessária para que `POST /auth/logout` saiba qual `Session` revogar a partir do próprio access token, sem exigir esse dado no corpo da requisição.
+7. **`Role`/`Permission` usam exclusão física**, diferente de `User` (exclusão lógica) — a especificação só define `deleted_at` para `User`.
+8. **Regra de negócio adicional**: um usuário não pode desativar/excluir a própria conta via `/users/{id}` (`CannotDeactivateSelfError`) — não pedida explicitamente, alinhada às boas práticas de segurança da Seção 1.
+9. **Paths de atribuição RBAC** (`/users/{id}/roles`, `/roles/{id}/permissions`) definidos por nós, já que a Seção 6 não fixa esse contrato.
+10. **Endpoint de health check** (`GET /api/v1/health`) adicionado — necessidade operacional padrão não coberta pelo contrato de endpoints da especificação, usado pelo `HEALTHCHECK` do Docker.
+11. **OAuth2 implementado como abstração genérica** (fluxo Authorization Code), já que a especificação menciona "OAuth2" na tabela de responsabilidades da camada de segurança, mas não define nenhum endpoint ou provider concreto.
