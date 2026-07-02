@@ -15,6 +15,7 @@ from app.api.dependencies.auth_dependency import CurrentTokenPayload, CurrentUse
 from app.api.dependencies.db_dependency import AuthServiceDep
 from app.schemas.auth_schema import (
     ConfirmEmailRequest,
+    EnableMFAResponse,
     ForgotPasswordRequest,
     LoginRequest,
     LogoutRequest,
@@ -24,7 +25,7 @@ from app.schemas.auth_schema import (
     ResetPasswordRequest,
     VerifyMFARequest,
 )
-from app.schemas.token_schema import EnableMFAResponse, MFAChallengeResponse, TokenResponse
+from app.schemas.token_schema import MFAChallengeResponse, TokenResponse
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
 

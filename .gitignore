@@ -16,6 +16,7 @@ dist/
 
 # --- Ambientes virtuais ---
 .venv/
+.venv-editor
 venv/
 env/
 ENV/
