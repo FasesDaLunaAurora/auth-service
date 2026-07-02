@@ -11,32 +11,31 @@ Este README foi escrito para que qualquer pessoa — de quem nunca rodou um proj
 - [Pré-requisitos](#pré-requisitos)
 - [1. Obtendo o código](#1-obtendo-o-código)
 - [2. Configuração do ambiente (.env)](#2-configuração-do-ambiente-env)
-- [3. Rodando com Docker (recomendado)](#3-rodando-com-docker-recomendado)
-- [4. Rodando localmente sem Docker](#4-rodando-localmente-sem-docker)
-- [5. Verificando que está funcionando](#5-verificando-que-está-funcionando)
-- [6. Rodando os testes](#6-rodando-os-testes)
-- [7. Migrações de banco de dados (Alembic)](#7-migrações-de-banco-de-dados-alembic)
-- [8. Populando dados iniciais (seed de permissões)](#8-populando-dados-iniciais-seed-de-permissões)
-- [9. Qualidade de código](#9-qualidade-de-código)
-- [10. Estrutura de pastas](#10-estrutura-de-pastas)
-- [11. Referência de variáveis de ambiente](#11-referência-de-variáveis-de-ambiente)
-- [12. Solução de problemas comuns](#12-solução-de-problemas-comuns)
-- [13. Contribuindo](#13-contribuindo)
-- [14. Decisões de implementação](#14-decisões-de-implementação)
+- [3. Rodando a aplicação](#3-rodando-a-aplicação)
+- [4. Verificando que está funcionando](#4-verificando-que-está-funcionando)
+- [5. Rodando os testes](#5-rodando-os-testes)
+- [6. Migrações de banco de dados (Alembic)](#6-migrações-de-banco-de-dados-alembic)
+- [7. Populando dados iniciais (seed de permissões)](#7-populando-dados-iniciais-seed-de-permissões)
+- [8. Qualidade de código](#8-qualidade-de-código)
+- [9. Estrutura de pastas](#9-estrutura-de-pastas)
+- [10. Referência de variáveis de ambiente](#10-referência-de-variáveis-de-ambiente)
+- [11. Solução de problemas comuns](#11-solução-de-problemas-comuns)
+- [12. Contribuindo](#12-contribuindo)
+- [13. Decisões de implementação](#13-decisões-de-implementação)
 
 ---
 
 ## Pré-requisitos
 
-Você só precisa de **uma** das duas colunas abaixo — não das duas.
+Este projeto roda **exclusivamente via Docker** — não há suporte a instalação local do Python/PostgreSQL/Redis. Isso garante que o ambiente de qualquer pessoa (independente de sistema operacional ou versões instaladas) seja idêntico ao de produção.
 
-| Para rodar com Docker (recomendado) | Para rodar localmente sem Docker |
-|---|---|
-| [Docker](https://docs.docker.com/get-docker/) 24+ | Python 3.11+ |
-| Docker Compose (já incluso no Docker Desktop) | PostgreSQL 17 rodando na sua máquina |
-| — | Redis rodando na sua máquina |
+Você só precisa de:
 
-Para contribuir com código (qualquer um dos dois caminhos), também é útil ter o [Git](https://git-scm.com/downloads) instalado.
+- [Docker](https://docs.docker.com/get-docker/) 24+
+- Docker Compose (já incluso no Docker Desktop, no Windows/macOS/Linux)
+- [Git](https://git-scm.com/downloads), se for versionar/contribuir com o código
+
+Nada de Python, PostgreSQL ou Redis precisa estar instalado na sua máquina.
 
 ---
 
@@ -92,15 +91,15 @@ Agora abra o `.env` e ajuste **pelo menos** estas variáveis antes de rodar qual
    ```
    Cole o resultado em `JWT_SECRET_KEY=` no `.env`.
 
-2. **`DATABASE_URL`** e **`REDIS_URL`** — os valores padrão do `.env.example` já apontam para os nomes dos serviços do `docker-compose.yml` (`db` e `redis`). Se for rodar **sem Docker**, troque `db`/`redis` por `localhost` (ver [seção 4](#4-rodando-localmente-sem-docker)).
+2. **`DATABASE_URL`** e **`REDIS_URL`** — os valores padrão do `.env.example` já apontam para os nomes dos serviços do `docker-compose.yml` (`db` e `redis`). Não altere isso — esses nomes só resolvem dentro da rede interna criada pelo Docker Compose, e é assim que a aplicação sempre roda neste projeto.
 
 3. **`SMTP_HOST`** — pode deixar em branco em ambiente de desenvolvimento. Sem SMTP configurado, o serviço apenas registra em log os e-mails que enviaria (confirmação de cadastro, reset de senha), em vez de falhar.
 
-Todas as outras variáveis têm valores padrão razoáveis para desenvolvimento — a lista completa e o que cada uma faz está na [seção 11](#11-referência-de-variáveis-de-ambiente).
+Todas as outras variáveis têm valores padrão razoáveis para desenvolvimento — a lista completa e o que cada uma faz está na [seção 10](#10-referência-de-variáveis-de-ambiente).
 
 ---
 
-## 3. Rodando com Docker (recomendado)
+## 3. Rodando a aplicação
 
 Com o `.env` configurado (passo anterior), suba tudo com um comando:
 
@@ -138,56 +137,17 @@ Para parar **e apagar os dados do banco** (útil se algo ficou inconsistente e v
 docker compose down -v
 ```
 
----
-
-## 4. Rodando localmente sem Docker
-
-Use este caminho se você quer depurar o código diretamente na sua IDE sem overhead de container.
-
-### 4.1. Suba PostgreSQL e Redis
-
-Se você não tem Postgres/Redis instalados na máquina, a forma mais rápida é usar o Docker **só para eles** (sem subir a aplicação):
+Para reconstruir a imagem depois de alterar `pyproject.toml` (novas dependências):
 
 ```bash
-docker compose up db redis
+docker compose up --build
 ```
 
-Isso deixa `db` e `redis` escutando em `localhost:5432` e `localhost:6379`.
-
-### 4.2. Ajuste o .env para apontar para localhost
-
-```dotenv
-DATABASE_URL=postgresql+asyncpg://auth_service:auth_service@localhost:5432/auth_service
-REDIS_URL=redis://localhost:6379/0
-```
-
-### 4.3. Crie um ambiente virtual e instale as dependências
-
-```bash
-python3 -m venv .venv
-source .venv/bin/activate        # Windows: .venv\Scripts\activate
-
-pip install --upgrade pip
-pip install ".[dev]"             # inclui pytest, ruff, mypy, etc.
-```
-
-### 4.4. Rode as migrações
-
-```bash
-alembic upgrade head
-```
-
-### 4.5. Suba a aplicação
-
-```bash
-uvicorn app.main:app --reload
-```
-
-A API estará em `http://localhost:8000`, com hot-reload a cada alteração de arquivo.
+O `--build` força a reconstrução mesmo se o Compose achar que a imagem já está atualizada.
 
 ---
 
-## 5. Verificando que está funcionando
+## 4. Verificando que está funcionando
 
 1. **Health check** (não exige autenticação):
    ```bash
@@ -225,84 +185,84 @@ A API estará em `http://localhost:8000`, com hot-reload a cada alteração de a
 
 ---
 
-## 6. Rodando os testes
+## 5. Rodando os testes
 
-Os testes de integração e de API rodam contra um **banco de dados real** (não um mock) — você precisa de Postgres e Redis acessíveis, com as mesmas variáveis `DATABASE_URL`/`REDIS_URL` do seu `.env`.
+Os testes de integração e de API rodam contra um **banco de dados real** (não um mock). Um serviço dedicado do Docker Compose (`test`) já vem com `pytest`, `ruff` e `mypy` instalados — ele usa o [profile](https://docs.docker.com/compose/how-tos/profiles/) `test`, então não sobe junto com `docker compose up` normal.
 
 ```bash
-# Se ainda não tiver Postgres/Redis rodando:
+# Suba db/redis se ainda não estiverem no ar:
 docker compose up -d db redis
 
-# Com o ambiente virtual ativado (ver seção 4.3):
-pytest
+# Rode a suíte completa:
+docker compose --profile test run --rm test
 ```
 
-Com relatório de cobertura:
+Com relatório de cobertura (já é o padrão do comando acima, mas para customizar):
 
 ```bash
-pytest --cov=app --cov-report=term-missing
+docker compose --profile test run --rm test pytest --cov=app --cov-report=term-missing
 ```
 
 Rodando só uma camada de teste:
 
 ```bash
-pytest tests/unit/            # unitários (services/security, com mocks)
-pytest tests/integration/     # repositórios, contra banco real
-pytest tests/api/             # fluxos HTTP completos
+docker compose --profile test run --rm test pytest tests/unit/            # unitários (services/security, com mocks)
+docker compose --profile test run --rm test pytest tests/integration/     # repositórios, contra banco real
+docker compose --profile test run --rm test pytest tests/api/             # fluxos HTTP completos
 ```
 
-> Os testes criam e destroem as tabelas automaticamente a cada execução (`tests/conftest.py`) — não rode a suíte de testes apontando para o banco de **produção**.
+> Os testes criam e destroem as tabelas automaticamente a cada execução (`tests/conftest.py`) — não aponte `DATABASE_URL` para o banco de **produção** ao rodar testes.
 
 ---
 
-## 7. Migrações de banco de dados (Alembic)
+## 6. Migrações de banco de dados (Alembic)
 
-A primeira migração (`alembic/versions/0001_initial_schema.py`) já cria todo o schema. Ao alterar um model em `app/models/`, gere uma nova migração:
+A primeira migração (`alembic/versions/0001_initial_schema.py`) já cria todo o schema e roda automaticamente ao subir o projeto (serviço `migrate`). Ao alterar um model em `app/models/`, gere uma nova migração usando o serviço `test` (que tem o código-fonte completo e as dependências necessárias):
 
 ```bash
-alembic revision --autogenerate -m "descreva a alteração aqui"
+docker compose --profile test run --rm test alembic revision --autogenerate -m "descreva a alteração aqui"
 ```
 
-Revise o arquivo gerado em `alembic/versions/` (o autogenerate nem sempre acerta 100%, especialmente em alterações de tipo de coluna), depois aplique:
+Revise o arquivo gerado em `alembic/versions/` (o autogenerate nem sempre acerta 100%, especialmente em alterações de tipo de coluna). A nova migração roda automaticamente na próxima vez que você subir o projeto (`docker compose up`), ou manualmente:
 
 ```bash
-alembic upgrade head
+docker compose run --rm migrate
 ```
 
 Para reverter a última migração:
 
 ```bash
-alembic downgrade -1
+docker compose --profile test run --rm test alembic downgrade -1
 ```
 
 ---
 
-## 8. Populando dados iniciais (seed de permissões)
+## 7. Populando dados iniciais (seed de permissões)
 
 Um RBAC não é útil sem permissões e uma role de administrador cadastradas. Rode o script de seed uma vez, após a primeira migração:
 
 ```bash
-python scripts/seed_permissions.py
+docker compose run --rm migrate python scripts/seed_permissions.py
 ```
 
 Isso cria, de forma idempotente (pode rodar de novo sem duplicar), todas as permissões definidas em `app/core/constants.py::PermissionCode` e uma role `admin` com todas elas atribuídas. Depois, atribua a role `admin` a um usuário seu via `POST /api/v1/users/{user_id}/roles`, ou marque `is_superuser=True` diretamente no banco para o primeiro usuário (bypassa RBAC completamente).
 
 ---
 
-## 9. Qualidade de código
+## 8. Qualidade de código
 
 ```bash
-ruff check .            # lint
-ruff check . --fix      # lint com correção automática do que for seguro
-ruff format .           # formatação
-mypy app                # checagem de tipos estática (modo strict)
+docker compose --profile test run --rm test ruff check .            # lint
+docker compose --profile test run --rm test ruff check . --fix      # lint com correção automática do que for seguro
+docker compose --profile test run --rm test ruff format .           # formatação
+docker compose --profile test run --rm test mypy app                # checagem de tipos estática (modo strict)
 ```
 
 O pipeline de CI (`.github/workflows/ci.yml`) roda exatamente esses comandos, mais a suíte de testes, a cada `push`/`pull request`.
 
 ---
 
-## 10. Estrutura de pastas
+## 9. Estrutura de pastas
 
 ```text
 auth-service/
@@ -350,11 +310,11 @@ auth-service/
 Essas duas pastas fazem parte da estrutura do projeto (para acomodar crescimento futuro), mas propositalmente não vêm cheias de conteúdo especulativo:
 
 - **`docs/`** — reservada para documentação estendida que não cabe num README (diagramas de arquitetura, ADRs — *Architecture Decision Records* —, coleções do Postman/Insomnia, runbooks de incidente). Veja `docs/README.md` para o que colocar aqui conforme o projeto crescer.
-- **`scripts/`** — reservada para scripts operacionais de manutenção, rodados manualmente ou via cron/job agendado (fora do ciclo de requisição HTTP). Já vem com `scripts/seed_permissions.py` funcional (seção 8) — veja `scripts/README.md` para a lista completa e convenções para adicionar novos scripts.
+- **`scripts/`** — reservada para scripts operacionais de manutenção, rodados manualmente ou via cron/job agendado (fora do ciclo de requisição HTTP). Já vem com `scripts/seed_permissions.py` funcional (seção 7) — veja `scripts/README.md` para a lista completa e convenções para adicionar novos scripts.
 
 ---
 
-## 11. Referência de variáveis de ambiente
+## 10. Referência de variáveis de ambiente
 
 | Variável | Obrigatória | Padrão | Descrição |
 |---|---|---|---|
@@ -383,11 +343,11 @@ Essas duas pastas fazem parte da estrutura do projeto (para acomodar crescimento
 | `SMTP_PORT` / `SMTP_USER` / `SMTP_PASSWORD` / `SMTP_FROM_EMAIL` / `SMTP_USE_TLS` | Não | ver `.env.example` | Configuração do servidor SMTP. |
 | `CORS_ALLOWED_ORIGINS` | Não | `["http://localhost:3000"]` | Lista JSON de origens permitidas. |
 | `LOG_LEVEL` | Não | `INFO` | `DEBUG`, `INFO`, `WARNING`, `ERROR` ou `CRITICAL`. |
-| `LOG_JSON` | Não | `true` | Se `false`, logs saem em texto legível em vez de JSON (útil rodando localmente sem Docker). |
+| `LOG_JSON` | Não | `true` | Se `false`, logs saem em texto legível em vez de JSON (útil ao observar `docker compose logs -f app` interativamente). |
 
 ---
 
-## 12. Solução de problemas comuns
+## 11. Solução de problemas comuns
 
 **"A aplicação não inicia, erro de ValidationError no Settings"**
 Alguma variável obrigatória (`DATABASE_URL`, `REDIS_URL` ou `JWT_SECRET_KEY`) está ausente ou inválida no `.env`. Revise a seção 2.
@@ -395,30 +355,30 @@ Alguma variável obrigatória (`DATABASE_URL`, `REDIS_URL` ou `JWT_SECRET_KEY`) 
 **"docker compose up fica travado em db sem ficar saudável"**
 A porta `5432` já pode estar em uso por outro Postgres na sua máquina. Pare o outro serviço ou mude o mapeamento de porta em `docker-compose.yml`.
 
-**"Erro de conexão recusada ao rodar localmente sem Docker"**
-Confira se trocou `db`/`redis` por `localhost` no `.env` (seção 4.2) — os nomes `db`/`redis` só resolvem dentro da rede do Docker Compose.
+**"Alterei o código mas a API não reflete a mudança"**
+O serviço `app` já roda com `--reload` e o código montado via volume (`docker-compose.yml`), então a maioria das alterações em `app/` é refletida automaticamente. Se você alterou `pyproject.toml` (novas dependências), é preciso reconstruir a imagem: `docker compose up --build`.
 
 **"Recebo 401/403 em rotas que deveriam funcionar"**
-Confira se o usuário está com `is_verified=True` (login exige confirmação de e-mail) e, para rotas administrativas, se ele tem a permissão RBAC necessária (seção 8) ou `is_superuser=True`.
+Confira se o usuário está com `is_verified=True` (login exige confirmação de e-mail) e, para rotas administrativas, se ele tem a permissão RBAC necessária (seção 7) ou `is_superuser=True`.
 
 **"Alterei um model e o Alembic não detectou a mudança"**
 Confirme que o novo model está importado em `alembic/env.py` — sem o import, o SQLAlchemy não sabe que a tabela existe.
 
 ---
 
-## 13. Contribuindo
+## 12. Contribuindo
 
 Contribuições são bem-vindas. Fluxo sugerido:
 
 1. Abra uma *issue* descrevendo o problema/melhoria antes de codar, para alinhar escopo.
 2. Crie um branch a partir de `main`: `git checkout -b minha-feature`.
-3. Rode `ruff check .`, `ruff format .` e `mypy app` antes de commitar — o CI vai rejeitar o PR se algum falhar.
-4. Adicione/atualize testes para qualquer mudança de comportamento (`pytest` precisa passar).
+3. Rode `docker compose --profile test run --rm test ruff check .`, `... ruff format .` e `... mypy app` antes de commitar — o CI vai rejeitar o PR se algum falhar (seção 8).
+4. Adicione/atualize testes para qualquer mudança de comportamento — `docker compose --profile test run --rm test` precisa passar (seção 5).
 5. Abra o Pull Request descrevendo o que mudou e por quê.
 
 ---
 
-## 14. Decisões de implementação
+## 13. Decisões de implementação
 
 Este projeto foi gerado a partir de uma especificação técnica detalhada. Onde a especificação era ambígua, incompleta ou internamente contraditória, a decisão tomada foi documentada diretamente no arquivo afetado (comentários "Nota de decisão") e resumida abaixo:
 

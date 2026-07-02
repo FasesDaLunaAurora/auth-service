@@ -21,7 +21,21 @@ RUN pip install --upgrade pip \
     && pip install .
 
 # ==============================================================================
-# Stage 2: runtime — imagem final mínima, sem ferramentas de build
+# Stage 2: test — builder + dependências de desenvolvimento (pytest, ruff,
+# mypy). Usada apenas pelo serviço `test` do docker-compose.yml, nunca em
+# produção — mantém a imagem `runtime` (stage seguinte) mínima.
+# ==============================================================================
+FROM builder AS test
+
+RUN pip install ".[dev]"
+
+WORKDIR /app
+COPY . .
+
+CMD ["pytest", "--cov=app", "--cov-report=term-missing"]
+
+# ==============================================================================
+# Stage 3: runtime — imagem final mínima, sem ferramentas de build/teste
 # ==============================================================================
 FROM python:3.11-slim AS runtime
 
@@ -40,6 +54,7 @@ WORKDIR /app
 COPY --chown=appuser:appuser app ./app
 COPY --chown=appuser:appuser alembic ./alembic
 COPY --chown=appuser:appuser alembic.ini ./alembic.ini
+COPY --chown=appuser:appuser scripts ./scripts
 COPY --chown=appuser:appuser pyproject.toml ./pyproject.toml
 
 USER appuser

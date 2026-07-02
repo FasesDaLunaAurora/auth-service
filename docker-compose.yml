@@ -36,7 +36,22 @@ services:
     depends_on:
       db:
         condition: service_healthy
-    entrypoint: ["alembic", "upgrade", "head"]
+    command: ["alembic", "upgrade", "head"]
+
+  test:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+      target: test
+    env_file:
+      - .env
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    profiles:
+      - test
 
   app:
     build:
@@ -47,6 +62,14 @@ services:
       - .env
     ports:
       - "8000:8000"
+    volumes:
+      # Monta o código-fonte do host dentro do container, para que
+      # `--reload` (abaixo) detecte alterações sem precisar reconstruir
+      # a imagem a cada mudança — essencial já que não há caminho de
+      # rodar a aplicação fora do Docker.
+      - ./app:/app/app
+      - ./alembic:/app/alembic
+    command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
     depends_on:
       db:
         condition: service_healthy
