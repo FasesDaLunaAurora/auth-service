@@ -5,6 +5,7 @@ Esta pasta é reservada para documentação **estendida** do projeto — conteú
 ## Documentos disponíveis
 
 - **[`integration-guide.md`](./integration-guide.md)** — como uma aplicação cliente (frontend, backend, ou ambos) deve se integrar ao Auth Service: fluxos de login/registro/MFA, onde guardar tokens, renovação automática, RBAC no cliente, padrões de integração backend-a-backend, CORS, e uma tabela de erros comuns.
+- **[`deployment-guide.md`](./deployment-guide.md)** — como subir a aplicação, o PostgreSQL e o Redis em produção: diferenças entre dev e produção, opções de banco/Redis gerenciados vs. self-hosted, build e réplicas da aplicação, migrações no fluxo de deploy, VPS com Docker Compose vs. PaaS, HTTPS, observabilidade e checklists de segurança/deploy.
 
 ## O que mais colocar aqui, conforme o projeto cresce
 
