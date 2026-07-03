@@ -9,11 +9,15 @@ Este README foi escrito para que qualquer pessoa — de quem nunca rodou um proj
 ## Sumário
 
 - [Pré-requisitos](#pré-requisitos)
+  - [Usando Podman em vez de Docker](#usando-podman-em-vez-de-docker)
+  - [Configurando autocomplete no editor (opcional)](#configurando-autocomplete-no-editor-opcional)
 - [1. Obtendo o código](#1-obtendo-o-código)
 - [2. Configuração do ambiente (.env)](#2-configuração-do-ambiente-env)
 - [3. Rodando a aplicação](#3-rodando-a-aplicação)
+  - [Quando preciso reconstruir a imagem (--build)?](#quando-preciso-reconstruir-a-imagem---build)
 - [4. Verificando que está funcionando](#4-verificando-que-está-funcionando)
 - [5. Rodando os testes](#5-rodando-os-testes)
+  - [Salvando a saída dos testes em arquivo](#salvando-a-saída-dos-testes-em-arquivo)
 - [6. Migrações de banco de dados (Alembic)](#6-migrações-de-banco-de-dados-alembic)
 - [7. Populando dados iniciais (seed de permissões)](#7-populando-dados-iniciais-seed-de-permissões)
 - [8. Qualidade de código](#8-qualidade-de-código)
@@ -27,15 +31,89 @@ Este README foi escrito para que qualquer pessoa — de quem nunca rodou um proj
 
 ## Pré-requisitos
 
-Este projeto roda **exclusivamente via Docker** — não há suporte a instalação local do Python/PostgreSQL/Redis. Isso garante que o ambiente de qualquer pessoa (independente de sistema operacional ou versões instaladas) seja idêntico ao de produção.
+Este projeto roda **exclusivamente em containers** — não há suporte a instalação local do Python/PostgreSQL/Redis. Isso garante que o ambiente de qualquer pessoa (independente de sistema operacional ou versões instaladas) seja idêntico ao de produção.
 
-Você só precisa de:
+Você precisa de **um** destes dois conjuntos de ferramentas:
 
-- [Docker](https://docs.docker.com/get-docker/) 24+
-- Docker Compose (já incluso no Docker Desktop, no Windows/macOS/Linux)
-- [Git](https://git-scm.com/downloads), se for versionar/contribuir com o código
+| Opção A: Docker (mais comum) | Opção B: Podman (mais leve, sem Docker Desktop) |
+|---|---|
+| [Docker](https://docs.docker.com/get-docker/) 24+ | [Podman](https://podman.io/docs/installation) 5+ |
+| Docker Compose (já incluso no Docker Desktop) | `podman-compose` (`pip install podman-compose`) |
 
-Nada de Python, PostgreSQL ou Redis precisa estar instalado na sua máquina.
+Nada de Python, PostgreSQL ou Redis precisa estar instalado na sua máquina — mesmo para rodar os scripts de seed, que também executam dentro de um container.
+
+Para contribuir com código, também é útil ter o [Git](https://git-scm.com/downloads) instalado.
+
+> Todos os comandos deste README usam `docker compose`. Se você está usando **Podman**, veja a seção abaixo antes de continuar — a substituição é simples, mas tem duas particularidades que vale saber de antemão.
+
+### Usando Podman em vez de Docker
+
+O Podman não tem o subcomando `compose` nativo funcional sem um provedor externo — por isso usamos o `podman-compose` (pacote Python), testado e confirmado funcionando neste projeto.
+
+**Configuração (uma vez só):**
+
+```powershell
+# 1. Crie e inicie a máquina do Podman (Windows/macOS; não é necessário no Linux nativo)
+podman machine init
+podman machine start
+
+# 2. Instale o podman-compose
+pip install podman-compose
+```
+
+**Uso no dia a dia:** troque `docker compose` por `podman-compose` (sem espaço, com hífen) em **todo comando deste README**. Exemplos:
+
+| Este README diz | Com Podman, rode |
+|---|---|
+| `docker compose up --build` | `podman-compose up --build` |
+| `docker compose up -d` | `podman-compose up -d` |
+| `docker compose logs -f app` | `podman-compose logs -f app` |
+| `docker compose down` / `down -v` | `podman-compose down` / `down -v` |
+| `docker compose run --rm migrate` | `podman-compose run --rm migrate` |
+| `docker compose --profile test run --rm test <comando>` | `podman-compose run --rm test <comando>` |
+
+**Duas particularidades do `podman-compose` (versão 1.6.0, a testada) para ficar de olho:**
+
+1. **`profiles:` pode não ser respeitado** — o serviço `test` usa `profiles: [test]` justamente para não subir junto no `up` normal. Se ele subir mesmo assim ao rodar `podman-compose up --build`, pare-o manualmente (`podman-compose stop test`) ou suba só os serviços que quer, nomeando-os: `podman-compose up --build db redis migrate app`.
+2. **`depends_on: condition: service_healthy` pode ser menos confiável** que no Docker Compose — se `migrate`/`app` tentar subir antes do Postgres/Redis estarem realmente prontos, suba o banco primeiro e aguarde alguns segundos antes do resto:
+   ```powershell
+   podman-compose up -d db redis
+   # aguarde alguns segundos
+   podman-compose up --build migrate app
+   ```
+
+Se encontrar qualquer outro comportamento diferente do documentado, é provável que seja uma particularidade de versão do `podman-compose` — abra uma *issue* descrevendo o erro (seção 12).
+
+### Configurando autocomplete no editor (opcional)
+
+Como o projeto roda inteiramente em container, seu sistema operacional não tem `fastapi`, `sqlalchemy` e as demais dependências instaladas — então seu editor (VS Code, PyCharm, etc.) provavelmente vai mostrar avisos do tipo `Import "fastapi" could not be resolved`. **Isso não afeta a aplicação rodando** — é só o editor não tendo onde procurar as bibliotecas para autocomplete/checagem de tipos.
+
+Se quiser eliminar esses avisos e ter autocomplete completo, crie um ambiente virtual **só para o editor usar como referência** — ele nunca roda a aplicação nem se conecta a nada, é puramente para o Pylance/IntelliSense conseguirem ler as bibliotecas:
+
+```bash
+python -m venv .venv-editor
+```
+
+Ative o ambiente:
+
+```powershell
+# Windows (PowerShell)
+.venv-editor\Scripts\activate
+```
+```bash
+# Linux / macOS
+source .venv-editor/bin/activate
+```
+
+Instale as dependências (incluindo as de desenvolvimento — pytest, ruff, mypy):
+
+```bash
+pip install ".[dev]"
+```
+
+No VS Code: `Ctrl+Shift+P` (ou `Cmd+Shift+P` no Mac) → **Python: Select Interpreter** → escolha o interpretador dentro de `.venv-editor`. Em outras IDEs, o equivalente é configurar o interpretador Python do projeto para apontar pra esse mesmo caminho.
+
+Esse passo é **totalmente opcional** — pular ele não impede a aplicação de rodar, só deixa o editor sem autocomplete. E ele não usa recursos do seu notebook além do espaço em disco (~300–400MB): não é um processo, só arquivos parados, diferente da VM do Docker/Podman (essa sim consome CPU/RAM o tempo em que estiver "Running").
 
 ---
 
@@ -108,7 +186,7 @@ docker compose up --build
 ```
 
 Isso vai, em ordem:
-1. Construir a imagem da aplicação (`docker/Dockerfile`).
+1. Construir a imagem da aplicação (`Dockerfile`, multi-stage).
 2. Subir o PostgreSQL e o Redis, aguardando ambos ficarem saudáveis (`healthcheck`).
 3. Rodar as migrações do banco automaticamente (serviço `migrate`).
 4. Subir a API em `http://localhost:8000`.
@@ -137,13 +215,22 @@ Para parar **e apagar os dados do banco** (útil se algo ficou inconsistente e v
 docker compose down -v
 ```
 
-Para reconstruir a imagem depois de alterar `pyproject.toml` (novas dependências):
+### Quando preciso reconstruir a imagem (`--build`)?
 
-```bash
-docker compose up --build
-```
+Os serviços `app`, `migrate` e `test` montam `app/`, `alembic/` e `scripts/` do seu computador direto dentro do container (`volumes:` no `docker-compose.yml`) — e `test` também monta `tests/`. Isso significa que, para a maior parte do trabalho do dia a dia, **editar esses arquivos e salvar já é suficiente**: o `app` roda com `--reload` (recarrega sozinho a cada mudança), e `migrate`/`test` sempre leem a versão mais recente do arquivo na hora que você os executa.
 
-O `--build` força a reconstrução mesmo se o Compose achar que a imagem já está atualizada.
+| Você alterou... | Precisa de `--build`? |
+|---|---|
+| Qualquer arquivo em `app/` | **Não** — `--reload` recarrega sozinho |
+| Qualquer arquivo em `tests/` | **Não** — lido na hora pelo serviço `test` |
+| Qualquer arquivo em `alembic/` (incluindo novas migrations) | **Não** |
+| Qualquer arquivo em `scripts/` | **Não** |
+| `pyproject.toml` (adicionar/remover dependência) | **Sim** — a dependência só existe dentro da imagem construída |
+| `Dockerfile` | **Sim** |
+| `docker-compose.yml` | Depende: mudanças em `volumes`/`command`/`ports`/`environment` pedem só `docker compose up` de novo (sem `--build`); mudanças que afetam o *build* (ex: `target:`) pedem `--build` |
+| `.env` | **Não** — lido em tempo de execução, não durante o build; basta reiniciar o container (`docker compose restart app`, ou `Ctrl+C` e subir de novo) |
+
+Na dúvida, `docker compose up --build` sempre funciona (o Docker reaproveita as camadas de cache que não mudaram, então não é lento na maioria das vezes) — os casos "Não" acima são só para evitar esperar um build sem necessidade.
 
 ---
 
@@ -212,6 +299,34 @@ docker compose --profile test run --rm test pytest tests/api/             # flux
 ```
 
 > Os testes criam e destroem as tabelas automaticamente a cada execução (`tests/conftest.py`) — não aponte `DATABASE_URL` para o banco de **produção** ao rodar testes.
+
+### Salvando a saída dos testes em arquivo
+
+A suíte completa gera bastante texto — se houver várias falhas, rola pra fora do buffer do terminal e fica difícil de revisar (ou de colar em algum lugar pra pedir ajuda). Salve em um arquivo **e** continue vendo em tempo real na tela, com o mesmo comando:
+
+```powershell
+# Windows (PowerShell)
+docker compose --profile test run --rm test 2>&1 | Tee-Object -FilePath pytest_output.txt
+```
+```bash
+# Linux / macOS
+docker compose --profile test run --rm test 2>&1 | tee pytest_output.txt
+```
+
+O que cada parte faz:
+- `2>&1` — junta a saída de erro (`stderr`) com a saída padrão (`stdout`) num único fluxo, para nada se perder (alguns avisos do Podman/Docker saem por `stderr`).
+- `Tee-Object -FilePath pytest_output.txt` (PowerShell) / `tee pytest_output.txt` (bash) — o "Tee" mostra a saída na tela **e** grava em `pytest_output.txt` ao mesmo tempo, sem precisar escolher um ou outro.
+
+Isso cria `pytest_output.txt` na raiz do projeto. Para conferir só o final (geralmente onde está o resumo `X passed, Y failed`), sem reabrir o arquivo inteiro:
+
+```powershell
+Get-Content pytest_output.txt -Tail 30
+```
+```bash
+tail -n 30 pytest_output.txt
+```
+
+> **Atenção (Windows/PowerShell):** o `Tee-Object` grava o arquivo em UTF-16 por padrão. Se for abrir `pytest_output.txt` em outra ferramenta que espere UTF-8, pode ser necessário converter a codificação antes.
 
 ---
 
@@ -290,14 +405,12 @@ auth-service/
 │   ├── integration/                # repositórios contra um banco real
 │   └── api/                        # fluxos HTTP de ponta a ponta
 │
-├── docker/
-│   └── Dockerfile                 # build multi-stage da imagem de produção
-│
 ├── docs/                          # documentação estendida do projeto (ver docs/README.md)
 ├── scripts/                       # scripts utilitários de operação (ver scripts/README.md)
 │
 ├── .env.example                   # modelo de variáveis de ambiente (sem segredos reais)
 ├── .gitignore
+├── Dockerfile                      # build multi-stage (builder / test / runtime)
 ├── docker-compose.yml              # orquestra app + PostgreSQL + Redis para desenvolvimento
 ├── pyproject.toml                  # dependências, config do Ruff/Mypy/Pytest
 └── README.md                       # este arquivo
@@ -358,6 +471,16 @@ A porta `5432` já pode estar em uso por outro Postgres na sua máquina. Pare o 
 **"Alterei o código mas a API não reflete a mudança"**
 O serviço `app` já roda com `--reload` e o código montado via volume (`docker-compose.yml`), então a maioria das alterações em `app/` é refletida automaticamente. Se você alterou `pyproject.toml` (novas dependências), é preciso reconstruir a imagem: `docker compose up --build`.
 
+**"Estou usando Podman e um serviço não sobe/sobe na hora errada"**
+Veja a seção [Usando Podman em vez de Docker](#usando-podman-em-vez-de-docker) — `profiles:` e `depends_on: condition: service_healthy` têm suporte menos consistente no `podman-compose` do que no Docker Compose.
+
+**"A aplicação crasha na inicialização com `AttributeError: module 'bcrypt' has no attribute '__about__'` ou `ValueError: password cannot be longer than 72 bytes`"**
+Incompatibilidade entre `passlib` e uma versão nova demais do `bcrypt` (4.1+). O `pyproject.toml` já trava `bcrypt<4.1` — se você ainda vir esse erro, a imagem foi construída antes dessa correção (ou o cache do build ainda tem a versão antiga). Force a reconstrução:
+```bash
+docker compose build --no-cache app migrate test
+docker compose up
+```
+
 **"Recebo 401/403 em rotas que deveriam funcionar"**
 Confira se o usuário está com `is_verified=True` (login exige confirmação de e-mail) e, para rotas administrativas, se ele tem a permissão RBAC necessária (seção 7) ou `is_superuser=True`.
 
@@ -393,3 +516,5 @@ Este projeto foi gerado a partir de uma especificação técnica detalhada. Onde
 9. **Paths de atribuição RBAC** (`/users/{id}/roles`, `/roles/{id}/permissions`) definidos por não estarem fixados na especificação original.
 10. **Endpoint de health check** (`GET /api/v1/health`) adicionado por necessidade operacional.
 11. **OAuth2** implementado como abstração genérica (Authorization Code Flow), sem provider concreto, por não haver endpoint OAuth definido na especificação original.
+12. **`Dockerfile` na raiz do projeto, não em `docker/Dockerfile`**: a especificação original pedia a segunda estrutura, mas `podman-compose` (testado na versão 1.6.0, no Windows) não resolve corretamente o campo `dockerfile:` apontando para uma subpasta — falha com "no Containerfile or Dockerfile specified or found", mesmo com o contexto de build correto. Mover o `Dockerfile` para a raiz (convenção padrão, sem precisar declarar `dockerfile:` no `docker-compose.yml`) resolve o problema de forma compatível tanto com Docker quanto com Podman.
+13. **`bcrypt` travado em `4.0.x`** (`pyproject.toml`): `passlib` 1.7.4 (sem atualizações desde 2020) quebra a inicialização da aplicação com `bcrypt` 4.1+ — a lib removeu um atributo interno (`__about__.__version__`) usado pelo passlib para detectar a versão do backend, e o caminho de fallback do passlib então esbarra na checagem mais rígida do bcrypt 4.1+ para senhas acima de 72 bytes, levantando `ValueError` (`password cannot be longer than 72 bytes`) mesmo para senhas curtas, ainda na importação dos módulos. Travar `bcrypt<4.1` resolve sem trocar de biblioteca.

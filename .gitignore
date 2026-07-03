@@ -29,6 +29,7 @@ ENV/
 .coverage.*
 htmlcov/
 coverage.xml
+pytest_output.txt
 
 # --- Bancos de dados locais ---
 *.sqlite3
@@ -48,3 +49,5 @@ Thumbs.db
 
 # --- Logs ---
 *.log
+
+

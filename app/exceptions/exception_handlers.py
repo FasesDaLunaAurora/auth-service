@@ -17,6 +17,7 @@ from __future__ import annotations
 from typing import Any
 
 from fastapi import FastAPI, Request, status
+from fastapi.encoders import jsonable_encoder
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
@@ -64,19 +65,29 @@ async def _handle_validation_error(
     """
     Traduz erros de validação do Pydantic/FastAPI (422) para o mesmo
     formato padronizado de erro, em vez do formato default do FastAPI.
+
+    Nota de decisão: `exc.errors()` pode conter objetos não
+    serializáveis em JSON puro dentro de `ctx` — por exemplo, quando um
+    `@field_validator` customizado (ex: `PermissionCreate`) levanta um
+    `ValueError`, o Pydantic inclui a exceção *crua* em
+    `ctx["error"]`, e `json.dumps` não sabe serializar isso
+    (`TypeError: Object of type ValueError is not JSON serializable`).
+    `jsonable_encoder` (o mesmo usado internamente pelo FastAPI) resolve
+    isso, convertendo para uma representação segura.
     """
+    safe_errors = jsonable_encoder(exc.errors())
     logger.info(
         "request_validation_error",
         correlation_id=_correlation_id(request),
         path=str(request.url.path),
-        errors=exc.errors(),
+        errors=safe_errors,
     )
     return JSONResponse(
         status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
         content=_error_body(
             code=ErrorCode.VALIDATION_ERROR.value,
             message="Os dados enviados são inválidos.",
-            details=exc.errors(),
+            details=safe_errors,
         ),
     )
 
