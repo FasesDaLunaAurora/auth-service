@@ -32,9 +32,24 @@ from app.models import (  # noqa: F401
 )
 
 
-@pytest_asyncio.fixture(scope="session")
+@pytest_asyncio.fixture
 async def _engine():
-    """Engine de teste, criada uma vez por sessão de testes."""
+    """
+    Engine de teste, criada uma vez **por teste** (não por sessão).
+
+    Nota de decisão: esta fixture já foi `scope="session"` (criada uma
+    única vez para toda a suíte), mas isso quebra com `pytest-asyncio`
+    no modo padrão, que cria um *event loop novo a cada função de
+    teste* (`asyncio_default_test_loop_scope=function`). Uma engine
+    assíncrona (e as conexões `asyncpg` que ela abre) fica presa ao
+    loop em que foi criada — reutilizá-la em testes que rodam em loops
+    diferentes causa `InterfaceError: cannot perform operation: another
+    operation is in progress` e `RuntimeError: Event loop is closed`.
+    Escopo de função aqui garante que a engine sempre nasce no mesmo
+    loop do teste que a está usando. Com o schema atual (poucas
+    tabelas), o custo de recriar via `create_all`/`drop_all` a cada
+    teste é desprezível.
+    """
     engine = create_async_engine(str(settings.DATABASE_URL))
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
@@ -62,6 +77,27 @@ async def db_session(_engine) -> AsyncGenerator[AsyncSession, None]:
         await session.close()
         await transaction.rollback()
         await connection.close()
+
+@pytest_asyncio.fixture(autouse=True)
+async def _reset_rate_limit_counters() -> AsyncGenerator[None, None]:
+    """
+    Zera o Redis usado para rate limiting antes de cada teste.
+
+    Nota de decisão: `get_redis_client()` é `@lru_cache` (um único
+    cliente para todo o processo — correto em produção, onde há um
+    único event loop de longa duração). Em testes, cada função roda em
+    um event loop *novo* (mesmo motivo do fix em `_engine`), então
+    reaproveitar o cliente cacheado do teste anterior causa
+    `RuntimeError: Event loop is closed`. Limpamos o cache aqui para
+    forçar um cliente novo, criado já no loop do teste atual.
+    """
+    from app.integrations.redis_client import get_redis_client
+
+    get_redis_client.cache_clear()
+    redis_client = get_redis_client()
+    await redis_client.flushdb()
+    yield
+    await redis_client.aclose()
 
 
 @pytest_asyncio.fixture

@@ -1,0 +1,15 @@
+.venv-editor/
+.venv/
+venv/
+.git/
+.github/
+__pycache__/
+**/__pycache__/
+*.pyc
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+.env
+docs/

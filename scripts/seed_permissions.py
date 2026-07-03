@@ -26,6 +26,22 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from app.core.constants import PermissionCode  # noqa: E402
 from app.database.session import session_scope  # noqa: E402
+
+# Importa TODOS os módulos de `app.models`, mesmo os não usados
+# diretamente neste script. `Role` e `Permission` têm relacionamentos
+# declarados por string (ex: `Mapped[list["User"]]`) — o SQLAlchemy só
+# consegue resolver esses nomes se a classe referenciada já tiver sido
+# importada em algum lugar do processo antes da primeira query. Sem
+# isso, a configuração do mapper falha com
+# `InvalidRequestError: ... failed to locate a name ('User')`. Mesmo
+# import completo já usado em `alembic/env.py` e `tests/conftest.py`.
+from app.models import (  # noqa: E402, F401
+    permission_model,
+    refresh_token_model,
+    role_model,
+    session_model,
+    user_model,
+)
 from app.models.permission_model import Permission  # noqa: E402
 from app.models.role_model import Role  # noqa: E402
 from app.repositories.permission_repository import PermissionRepository  # noqa: E402
@@ -74,8 +90,8 @@ async def seed() -> None:
 
         newly_assigned = 0
         for permission in all_permissions:
-            if permission not in admin_role.permissions:
-                await role_repo.assign_permission(admin_role, permission)
+            was_new = await role_repo.assign_permission(admin_role, permission)
+            if was_new:
                 newly_assigned += 1
 
     print(f"Permissões existentes/definidas: {len(codes)}")

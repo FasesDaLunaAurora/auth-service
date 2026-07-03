@@ -41,6 +41,12 @@ class RoleRepository:
     async def create(self, role: Role) -> Role:
         self._db.add(role)
         await self._db.flush()
+        # Garante que `.permissions` esteja carregado (vazio, para uma
+        # role recém-criada) antes de devolver o objeto — sem isso,
+        # serializar a resposta com `RoleRead.model_validate(role)`
+        # (que inclui `permissions`) na camada de API pode disparar o
+        # mesmo `MissingGreenlet` já visto em `assign_permission`.
+        await self._db.refresh(role, attribute_names=["permissions"])
         return role
 
     async def update(self, role: Role) -> Role:
@@ -74,14 +80,35 @@ class RoleRepository:
         result = await self._db.execute(stmt)
         return list(result.scalars().all()), total
 
-    async def assign_permission(self, role: Role, permission: Permission) -> None:
-        """Adiciona uma permissão à coleção de permissões da role, se ainda não presente."""
+    # Nota: `role.permissions` é acessada por `assign_permission` e
+    # `remove_permission` logo abaixo. Sem um `refresh()` explícito
+    # antes desse acesso, uma `Role` cuja coleção não tenha sido
+    # populada pela consulta que a originou (ex: uma role recém-criada
+    # e apenas `flush()`ada, ou dependendo da versão do SQLAlchemy)
+    # pode disparar uma tentativa de lazy-load síncrona ao acessar
+    # `.permissions` — o que falha com `MissingGreenlet` sobre um
+    # engine assíncrono, mesmo com `lazy="selectin"` configurado no
+    # model (Etapa 2). `session.refresh()` é assíncrono e seguro aqui.
+    async def assign_permission(self, role: Role, permission: Permission) -> bool:
+        """
+        Adiciona uma permissão à coleção de permissões da role, se ainda
+        não presente. Retorna `True` se a atribuição foi de fato nova,
+        `False` se a permissão já estava atribuída — assim, chamadores
+        (services, scripts) nunca precisam acessar `role.permissions`
+        diretamente para saber se algo mudou.
+        """
+        await self._db.refresh(role, attribute_names=["permissions"])
         if permission not in role.permissions:
             role.permissions.append(permission)
             await self._db.flush()
+            return True
+        return False
 
-    async def remove_permission(self, role: Role, permission: Permission) -> None:
-        """Remove uma permissão da coleção de permissões da role, se presente."""
+    async def remove_permission(self, role: Role, permission: Permission) -> bool:
+        """Remove uma permissão da coleção de permissões da role, se presente. Ver `assign_permission`."""
+        await self._db.refresh(role, attribute_names=["permissions"])
         if permission in role.permissions:
             role.permissions.remove(permission)
             await self._db.flush()
+            return True
+        return False

@@ -32,6 +32,10 @@ services:
       context: .
     env_file:
       - .env
+    volumes:
+      - ./app:/app/app
+      - ./alembic:/app/alembic
+      - ./scripts:/app/scripts
     depends_on:
       db:
         condition: service_healthy
@@ -43,6 +47,11 @@ services:
       target: test
     env_file:
       - .env
+    volumes:
+      - ./app:/app/app
+      - ./alembic:/app/alembic
+      - ./scripts:/app/scripts
+      - ./tests:/app/tests
     depends_on:
       db:
         condition: service_healthy
@@ -60,12 +69,9 @@ services:
     ports:
       - "8000:8000"
     volumes:
-      # Monta o código-fonte do host dentro do container, para que
-      # `--reload` (abaixo) detecte alterações sem precisar reconstruir
-      # a imagem a cada mudança — essencial já que não há caminho de
-      # rodar a aplicação fora do Docker.
       - ./app:/app/app
       - ./alembic:/app/alembic
+      - ./scripts:/app/scripts
     command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
     depends_on:
       db:

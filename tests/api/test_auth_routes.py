@@ -118,10 +118,14 @@ async def test_account_locks_after_max_failed_login_attempts(
     assert locked_response.json()["error"]["code"] == "ACCOUNT_LOCKED"
 
 
-@pytest.mark.asyncio
-async def test_access_protected_route_without_token_returns_403(client: AsyncClient) -> None:
+async def test_access_protected_route_without_token_returns_401(client: AsyncClient) -> None:
+    """
+    `HTTPBearer` (usado em `auth_dependency.py`) retorna 401 quando o
+    header `Authorization` está ausente — é o código correto (não
+    autenticado); 403 seria para "autenticado, mas sem permissão".
+    """
     response = await client.get("/api/v1/users/me")
-    assert response.status_code == 403
+    assert response.status_code == 401
 
 
 @pytest.mark.asyncio

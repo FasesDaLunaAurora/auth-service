@@ -58,6 +58,12 @@ class UserRepository:
         """Persiste um novo usuário e sincroniza o ID gerado (`flush`, sem `commit`)."""
         self._db.add(user)
         await self._db.flush()
+        # Mesma proteção aplicada em `RoleRepository.create()`: garante
+        # que `.roles` esteja carregado (vazio) antes de o objeto ser
+        # devolvido, prevenindo `MissingGreenlet` caso algum chamador
+        # futuro serialize `UserRead` (que inclui `roles`) logo após a
+        # criação, sem passar por uma consulta real antes.
+        await self._db.refresh(user, attribute_names=["roles"])
         return user
 
     async def update(self, user: User) -> User:
@@ -131,14 +137,23 @@ class UserRepository:
         user.failed_login_attempts = 0
         await self._db.flush()
 
-    async def assign_role(self, user: User, role: Role) -> None:
-        """Adiciona uma role à coleção de roles do usuário, se ainda não presente."""
+    # Ver nota de decisão equivalente em
+    # `RoleRepository.assign_permission` sobre por que o `refresh()`
+    # explícito abaixo é necessário para evitar `MissingGreenlet`.
+    async def assign_role(self, user: User, role: Role) -> bool:
+        """Adiciona uma role à coleção de roles do usuário, se ainda não presente. Retorna se foi nova."""
+        await self._db.refresh(user, attribute_names=["roles"])
         if role not in user.roles:
             user.roles.append(role)
             await self._db.flush()
+            return True
+        return False
 
-    async def remove_role(self, user: User, role: Role) -> None:
-        """Remove uma role da coleção de roles do usuário, se presente."""
+    async def remove_role(self, user: User, role: Role) -> bool:
+        """Remove uma role da coleção de roles do usuário, se presente. Retorna se foi removida."""
+        await self._db.refresh(user, attribute_names=["roles"])
         if role in user.roles:
             user.roles.remove(role)
             await self._db.flush()
+            return True
+        return False
