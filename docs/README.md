@@ -7,6 +7,7 @@ Esta pasta é reservada para documentação **estendida** do projeto — conteú
 - **[`integration-guide.md`](./integration-guide.md)** — como uma aplicação cliente (frontend, backend, ou ambos) deve se integrar ao Auth Service: fluxos de login/registro/MFA, onde guardar tokens, renovação automática, RBAC no cliente, padrões de integração backend-a-backend, CORS, e uma tabela de erros comuns.
 - **[`deployment-guide.md`](./deployment-guide.md)** — como subir a aplicação, o PostgreSQL e o Redis em produção: diferenças entre dev e produção, opções de banco/Redis gerenciados vs. self-hosted, build e réplicas da aplicação, migrações no fluxo de deploy, VPS com Docker Compose vs. PaaS, HTTPS, observabilidade e checklists de segurança/deploy.
 - **[`usage-guide.md`](./usage-guide.md)** — o que a API faz do ponto de vista funcional: tipos de usuário, ciclo de vida da conta, fluxos completos (cadastro, login, MFA, recuperação de senha), como o RBAC funciona na prática, fluxo de administrador (criar roles/permissões, promover um usuário), gestão de sessões, e uma tabela de todos os endpoints com a permissão exigida por cada um.
+- **[`permissions-reference.md`](./permissions-reference.md)** — dicionário detalhado de cada permissão do sistema: o que libera, nível de risco, quais combinações são perigosas (escalonamento de privilégio), e exemplos de roles por função seguindo o princípio de menor privilégio.
 
 ## O que mais colocar aqui, conforme o projeto cresce
 
