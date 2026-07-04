@@ -21,6 +21,7 @@ Este README foi escrito para que qualquer pessoa — de quem nunca rodou um proj
 - [6. Migrações de banco de dados (Alembic)](#6-migrações-de-banco-de-dados-alembic)
 - [7. Populando dados iniciais (seed de permissões)](#7-populando-dados-iniciais-seed-de-permissões)
 - [8. Qualidade de código](#8-qualidade-de-código)
+  - [Checklist antes de commitar](#checklist-antes-de-commitar)
 - [9. Estrutura de pastas](#9-estrutura-de-pastas)
 - [10. Referência de variáveis de ambiente](#10-referência-de-variáveis-de-ambiente)
 - [11. Solução de problemas comuns](#11-solução-de-problemas-comuns)
@@ -374,6 +375,39 @@ docker compose --profile test run --rm test mypy app                # checagem d
 ```
 
 O pipeline de CI (`.github/workflows/ci.yml`) roda exatamente esses comandos, mais a suíte de testes, a cada `push`/`pull request`.
+
+### Checklist antes de commitar
+
+Rode esta sequência **antes de todo commit** — é exatamente o que o CI verifica, então rodar local primeiro evita o ciclo de "commitar, esperar o CI falhar, corrigir, commitar de novo":
+
+```bash
+# 1. Corrija automaticamente o que for seguro
+docker compose --profile test run --rm test ruff check . --fix
+
+# 2. Reformate o código (espaçamento, quebra de linha, etc. — não tem
+#    como prever manualmente, sempre deixe o ruff aplicar)
+docker compose --profile test run --rm test ruff format .
+
+# 3. Confirme que não sobrou nada (deve sair "All checks passed!")
+docker compose --profile test run --rm test ruff check .
+
+# 4. Confirme a formatação também (deve sair "X files already formatted")
+docker compose --profile test run --rm test ruff format --check .
+
+# 5. Checagem de tipos
+docker compose --profile test run --rm test mypy app
+
+# 6. Suíte de testes completa
+docker compose --profile test run --rm test
+```
+
+Pontos importantes sobre essa sequência:
+
+- **A ordem importa**: rode `--fix` e `format` **antes** de `check`/`format --check` — senão você vai ver os mesmos erros que acabou de poder corrigir automaticamente.
+- **`ruff check . --fix` não corrige tudo.** Alguns avisos (nome de exceção sem sufixo `Error`, linha de docstring longa demais, união de tipo com `Enum`+`str`, etc.) exigem edição manual — o próprio `ruff` avisa quantos "fixable" existem no resultado. Leia a saída do passo 3 com atenção antes de seguir.
+- **`ruff format` só formata — nunca corrige lint.** São duas ferramentas diferentes (`format` = estilo/espaçamento, `check` = imports/tipos/padrões de código), rode as duas sempre, não uma no lugar da outra.
+- **Se você editou `pyproject.toml`, `Dockerfile`, ou adicionou/removeu dependências**, adicione `--build` em qualquer um dos comandos acima (ver [seção "Quando preciso reconstruir a imagem"](#quando-preciso-reconstruir-a-imagem---build)) — sem isso, você está rodando contra uma imagem desatualizada e os resultados não refletem a mudança real.
+- **Se `mypy` reclamar de um tipo de biblioteca de terceiros sem stubs** (ex: `import-untyped`), não instale stubs de terceiros de qualidade incerta às pressas — considere adicionar um `[[tool.mypy.overrides]]` no `pyproject.toml` (já existe um para `jose`/`passlib`, useo como referência).
 
 ---
 
