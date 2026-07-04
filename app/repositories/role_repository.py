@@ -105,7 +105,7 @@ class RoleRepository:
         return False
 
     async def remove_permission(self, role: Role, permission: Permission) -> bool:
-        """Remove uma permissão da coleção de permissões da role, se presente. Ver `assign_permission`."""
+        """Remove uma permissão da role, se presente. Ver `assign_permission`."""
         await self._db.refresh(role, attribute_names=["permissions"])
         if permission in role.permissions:
             role.permissions.remove(permission)

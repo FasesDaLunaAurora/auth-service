@@ -10,8 +10,7 @@ responsabilidade de `app/services/user_service.py` e
 
 from __future__ import annotations
 
-import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
 from sqlalchemy import Boolean, DateTime, Integer, String
@@ -67,17 +66,17 @@ class User(UUIDPrimaryKeyMixin, TimestampMixin, SoftDeleteMixin, Base):
     mfa_secret: Mapped[str | None] = mapped_column(String(64), default=None, nullable=True)
 
     # --- Relacionamentos ---
-    roles: Mapped[list["Role"]] = relationship(
+    roles: Mapped[list[Role]] = relationship(
         secondary="user_roles",
         back_populates="users",
         lazy="selectin",
     )
-    refresh_tokens: Mapped[list["RefreshToken"]] = relationship(
+    refresh_tokens: Mapped[list[RefreshToken]] = relationship(
         back_populates="user",
         cascade="all, delete-orphan",
         passive_deletes=True,
     )
-    sessions: Mapped[list["Session"]] = relationship(
+    sessions: Mapped[list[Session]] = relationship(
         back_populates="user",
         cascade="all, delete-orphan",
         passive_deletes=True,
@@ -103,7 +102,7 @@ class User(UUIDPrimaryKeyMixin, TimestampMixin, SoftDeleteMixin, Base):
         Exposta como propriedade de conveniência; a decisão de *quando*
         bloquear/desbloquear permanece em `auth_service`.
         """
-        return self.locked_until is not None and self.locked_until > datetime.now(timezone.utc)
+        return self.locked_until is not None and self.locked_until > datetime.now(UTC)
 
     def __repr__(self) -> str:  # pragma: no cover - apenas debug
         return f"<User id={self.id} email={self.email!r}>"

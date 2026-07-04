@@ -9,7 +9,7 @@ todas as entidades do domínio.
 from __future__ import annotations
 
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from sqlalchemy import DateTime
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
@@ -25,7 +25,7 @@ def utcnow() -> datetime:
     completo — como `RefreshToken` e `Session`, que só precisam de
     `created_at` — possam reutilizar o mesmo default.
     """
-    return datetime.now(timezone.utc)
+    return datetime.now(UTC)
 
 
 # Alias privado mantido por compatibilidade interna deste módulo.

@@ -141,7 +141,7 @@ class UserRepository:
     # `RoleRepository.assign_permission` sobre por que o `refresh()`
     # explícito abaixo é necessário para evitar `MissingGreenlet`.
     async def assign_role(self, user: User, role: Role) -> bool:
-        """Adiciona uma role à coleção de roles do usuário, se ainda não presente. Retorna se foi nova."""
+        """Adiciona uma role ao usuário, se ainda não presente. Retorna se foi nova."""
         await self._db.refresh(user, attribute_names=["roles"])
         if role not in user.roles:
             user.roles.append(role)

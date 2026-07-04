@@ -34,7 +34,7 @@ class Permission(UUIDPrimaryKeyMixin, Base):
     code: Mapped[str] = mapped_column(String(150), unique=True, index=True, nullable=False)
     description: Mapped[str | None] = mapped_column(String(500), default=None, nullable=True)
 
-    roles: Mapped[list["Role"]] = relationship(
+    roles: Mapped[list[Role]] = relationship(
         secondary=role_permissions,
         back_populates="permissions",
         lazy="selectin",

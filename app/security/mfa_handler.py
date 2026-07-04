@@ -31,7 +31,7 @@ class MFAHandler:
 
     @staticmethod
     def generate_secret() -> str:
-        """Gera um novo secret TOTP, codificado em Base32 (formato exigido pelos apps autenticadores)."""
+        """Gera um novo secret TOTP em Base32 (formato exigido pelos apps autenticadores)."""
         random_bytes = secrets.token_bytes(_SECRET_BYTES_LENGTH)
         return base64.b32encode(random_bytes).decode("utf-8").rstrip("=")
 

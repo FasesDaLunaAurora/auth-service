@@ -30,15 +30,13 @@ from app.core.constants import TokenType
 from app.core.security import (
     TokenDecodeError,
     TokenEncodeError,
-)
-from app.core.security import TokenExpiredError as _CoreTokenExpiredError
-from app.core.security import (
     compute_expiry,
     decode_jwt,
     encode_jwt,
     hash_opaque_token,
     utcnow,
 )
+from app.core.security import TokenExpiredError as _CoreTokenExpiredError
 from app.exceptions.auth_exceptions import (
     InvalidTokenError,
     TokenExpiredError,

@@ -22,7 +22,7 @@ primitivas e suas próprias exceções de baixo nível.
 from __future__ import annotations
 
 import hashlib
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from jose import ExpiredSignatureError, JWTError, jwt
@@ -134,7 +134,7 @@ def decode_jwt(token: str) -> dict[str, Any]:
 
 def utcnow() -> datetime:
     """Horário atual em UTC — usado para calcular `iat`/`exp` de forma consistente."""
-    return datetime.now(timezone.utc)
+    return datetime.now(UTC)
 
 
 def hash_opaque_token(raw_value: str) -> str:

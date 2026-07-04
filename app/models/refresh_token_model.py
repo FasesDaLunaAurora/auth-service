@@ -45,7 +45,7 @@ class RefreshToken(UUIDPrimaryKeyMixin, Base):
         DateTime(timezone=True), default=utcnow, nullable=False
     )
 
-    user: Mapped["User"] = relationship(back_populates="refresh_tokens")
+    user: Mapped[User] = relationship(back_populates="refresh_tokens")
 
     def __repr__(self) -> str:  # pragma: no cover
         return f"<RefreshToken id={self.id} user_id={self.user_id} revoked={self.revoked}>"

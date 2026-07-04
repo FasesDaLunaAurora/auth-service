@@ -9,7 +9,7 @@ no cadastro.
 from __future__ import annotations
 
 import uuid
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
@@ -82,7 +82,7 @@ async def test_login_with_locked_account_raises_account_locked_error() -> None:
     """Caso de borda obrigatório (Seção 9): login com conta bloqueada."""
     service, user_repo, *_ = _build_service()
     locked_user = _make_user(
-        locked_until=datetime.now(timezone.utc) + timedelta(minutes=10)
+        locked_until=datetime.now(UTC) + timedelta(minutes=10)
     )
     user_repo.get_by_email.return_value = locked_user
 
@@ -110,7 +110,7 @@ async def test_refresh_with_revoked_token_reuse_raises_and_revokes_everything() 
         id=uuid.uuid4(),
         user_id=user.id,
         token_hash=JWTHandler.hash_token(issued_refresh.token),
-        expires_at=datetime.now(timezone.utc) + timedelta(days=1),
+        expires_at=datetime.now(UTC) + timedelta(days=1),
         revoked=True,  # já revogado — simula reuso/replay
     )
     refresh_token_repo.get_by_token_hash.return_value = stored_token

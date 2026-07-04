@@ -6,7 +6,7 @@ conforme a Seção 9.
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import pytest
 
@@ -34,7 +34,7 @@ async def test_soft_deleted_user_is_excluded_by_default(db_session) -> None:
     user = User(email="deleted@example.com", full_name="Will Be Deleted", hashed_password="x")
     await repo.create(user)
 
-    await repo.soft_delete(user, deleted_at=datetime.now(timezone.utc))
+    await repo.soft_delete(user, deleted_at=datetime.now(UTC))
 
     assert await repo.get_by_id(user.id) is None
     assert await repo.get_by_id(user.id, include_deleted=True) is not None

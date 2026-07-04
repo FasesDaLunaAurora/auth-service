@@ -114,7 +114,7 @@ class ChangePasswordRequest(BaseModel):
         return validate_password_strength(value)
 
     @model_validator(mode="after")
-    def _check_passwords_match(self) -> "ChangePasswordRequest":
+    def _check_passwords_match(self) -> ChangePasswordRequest:
         if self.new_password != self.new_password_confirm:
             raise ValueError("A nova senha e a confirmação não coincidem.")
         if self.new_password == self.current_password:

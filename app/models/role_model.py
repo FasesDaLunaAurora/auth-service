@@ -9,7 +9,6 @@ próprios, conforme recomendado pelo próprio SQLAlchemy 2.x.
 
 from __future__ import annotations
 
-import uuid
 from typing import TYPE_CHECKING
 
 from sqlalchemy import Column, ForeignKey, String, Table
@@ -69,12 +68,12 @@ class Role(UUIDPrimaryKeyMixin, Base):
     name: Mapped[str] = mapped_column(String(100), unique=True, index=True, nullable=False)
     description: Mapped[str | None] = mapped_column(String(500), default=None, nullable=True)
 
-    users: Mapped[list["User"]] = relationship(
+    users: Mapped[list[User]] = relationship(
         secondary=user_roles,
         back_populates="roles",
         lazy="selectin",
     )
-    permissions: Mapped[list["Permission"]] = relationship(
+    permissions: Mapped[list[Permission]] = relationship(
         secondary=role_permissions,
         back_populates="roles",
         lazy="selectin",

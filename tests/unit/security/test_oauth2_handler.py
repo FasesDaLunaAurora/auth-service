@@ -73,9 +73,8 @@ async def test_exchange_code_for_token_raises_domain_error_on_http_failure() -> 
     mock_client.post.side_effect = httpx.ConnectError("connection failed")
     mock_client.__aenter__.return_value = mock_client
 
-    with patch("httpx.AsyncClient", return_value=mock_client):
-        with pytest.raises(OAuth2ExchangeError):
-            await OAuth2Handler.exchange_code_for_token(_FAKE_PROVIDER, code="fake-code")
+    with patch("httpx.AsyncClient", return_value=mock_client), pytest.raises(OAuth2ExchangeError):
+        await OAuth2Handler.exchange_code_for_token(_FAKE_PROVIDER, code="fake-code")
 
 
 @pytest.mark.asyncio
@@ -100,6 +99,5 @@ async def test_fetch_user_info_raises_domain_error_on_http_failure() -> None:
     mock_client.get.side_effect = httpx.ConnectError("connection failed")
     mock_client.__aenter__.return_value = mock_client
 
-    with patch("httpx.AsyncClient", return_value=mock_client):
-        with pytest.raises(OAuth2ExchangeError):
-            await OAuth2Handler.fetch_user_info(_FAKE_PROVIDER, access_token="fake-token")
+    with patch("httpx.AsyncClient", return_value=mock_client), pytest.raises(OAuth2ExchangeError):
+        await OAuth2Handler.fetch_user_info(_FAKE_PROVIDER, access_token="fake-token")

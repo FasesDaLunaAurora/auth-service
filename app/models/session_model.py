@@ -46,7 +46,7 @@ class Session(UUIDPrimaryKeyMixin, Base):
     )
     revoked: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
 
-    user: Mapped["User"] = relationship(back_populates="sessions")
+    user: Mapped[User] = relationship(back_populates="sessions")
 
     def __repr__(self) -> str:  # pragma: no cover
         return f"<Session id={self.id} user_id={self.user_id} revoked={self.revoked}>"

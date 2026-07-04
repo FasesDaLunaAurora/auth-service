@@ -43,7 +43,7 @@ class PermissionService:
     async def update_permission(
         self, permission_id: uuid.UUID, payload: PermissionUpdate
     ) -> Permission:
-        """Atualiza a descrição de uma permissão (`PATCH /permissions/{id}`, `permission:update`)."""
+        """Atualiza a descrição de uma permissão (PATCH /permissions/{id})."""
         permission = await self.get_by_id_or_raise(permission_id)
         if payload.description is not None:
             permission.description = payload.description

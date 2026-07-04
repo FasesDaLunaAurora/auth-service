@@ -56,7 +56,7 @@ class EmailClient:
         await asyncio.to_thread(self._send_sync, to=to, subject=subject, body=body)
 
     async def send_email_confirmation(self, *, to: str, token: str) -> None:
-        """Envia o e-mail com o token de confirmação de cadastro (Seção 6: `/auth/email/confirm`)."""
+        """Envia o e-mail com o token de confirmação de cadastro (Seção 6)."""
         body = (
             "Bem-vindo(a)! Confirme seu cadastro usando o token abaixo no endpoint "
             f"de confirmação de e-mail:\n\n{token}\n\n"

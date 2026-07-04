@@ -9,11 +9,11 @@ middleware.
 
 from __future__ import annotations
 
-from enum import Enum
+from enum import StrEnum
 from typing import Final
 
 
-class TokenType(str, Enum):
+class TokenType(str, StrEnum):
     """Tipos de token emitidos pelo serviço de autenticação."""
 
     ACCESS = "access"
@@ -23,7 +23,7 @@ class TokenType(str, Enum):
     MFA_CHALLENGE = "mfa_challenge"
 
 
-class AuditAction(str, Enum):
+class AuditAction(str, StrEnum):
     """Ações auditáveis registradas pelo `audit_middleware` / services."""
 
     LOGIN_SUCCESS = "LOGIN_SUCCESS"
@@ -49,7 +49,7 @@ class AuditAction(str, Enum):
     ACCESS_DENIED = "ACCESS_DENIED"
 
 
-class ErrorCode(str, Enum):
+class ErrorCode(str, StrEnum):
     """
     Códigos de erro estáveis retornados no corpo padronizado de erro.
 

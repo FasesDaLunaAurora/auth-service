@@ -36,7 +36,7 @@ class RegisterRequest(UserCreate):
     password_confirm: str = Field(..., min_length=1, max_length=128)
 
     @model_validator(mode="after")
-    def _check_passwords_match(self) -> "RegisterRequest":
+    def _check_passwords_match(self) -> RegisterRequest:
         if self.password != self.password_confirm:
             raise ValueError("A senha e a confirmação de senha não coincidem.")
         return self
@@ -111,7 +111,7 @@ class ResetPasswordRequest(BaseModel):
     new_password_confirm: str = Field(..., min_length=8, max_length=128)
 
     @model_validator(mode="after")
-    def _validate(self) -> "ResetPasswordRequest":
+    def _validate(self) -> ResetPasswordRequest:
         validate_password_strength(self.new_password)
         if self.new_password != self.new_password_confirm:
             raise ValueError("A nova senha e a confirmação não coincidem.")

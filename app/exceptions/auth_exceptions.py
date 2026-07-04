@@ -4,7 +4,7 @@ Exceções de domínio específicas do fluxo de autenticação e autorização.
 
 from __future__ import annotations
 
-from app.core.constants import ErrorCode, GENERIC_AUTH_ERROR_MESSAGE
+from app.core.constants import GENERIC_AUTH_ERROR_MESSAGE, ErrorCode
 from app.exceptions.base_exception import DomainException
 
 
