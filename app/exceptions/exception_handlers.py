@@ -59,9 +59,7 @@ async def _handle_domain_exception(request: Request, exc: DomainException) -> JS
     )
 
 
-async def _handle_validation_error(
-    request: Request, exc: RequestValidationError
-) -> JSONResponse:
+async def _handle_validation_error(request: Request, exc: RequestValidationError) -> JSONResponse:
     """
     Traduz erros de validação do Pydantic/FastAPI (422) para o mesmo
     formato padronizado de erro, em vez do formato default do FastAPI.
@@ -92,9 +90,7 @@ async def _handle_validation_error(
     )
 
 
-async def _handle_http_exception(
-    request: Request, exc: StarletteHTTPException
-) -> JSONResponse:
+async def _handle_http_exception(request: Request, exc: StarletteHTTPException) -> JSONResponse:
     """
     Traduz `HTTPException`s "cruas" (ex: 404 de rota inexistente, 405
     método não permitido) que não passam pela camada de domínio — ainda

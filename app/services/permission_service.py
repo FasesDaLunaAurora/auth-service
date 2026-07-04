@@ -33,9 +33,7 @@ class PermissionService:
     async def create_permission(self, payload: PermissionCreate) -> Permission:
         """Cria uma nova permissão (`POST /permissions`, `permission:create`)."""
         if await self._permissions.exists_by_code(payload.code):
-            raise ValidationConflictError(
-                f"Já existe uma permissão com o código '{payload.code}'."
-            )
+            raise ValidationConflictError(f"Já existe uma permissão com o código '{payload.code}'.")
         permission = Permission(code=payload.code, description=payload.description)
         await self._permissions.create(permission)
         return permission
@@ -55,8 +53,6 @@ class PermissionService:
         permission = await self.get_by_id_or_raise(permission_id)
         await self._permissions.delete(permission)
 
-    async def list_permissions(
-        self, *, page: int, page_size: int
-    ) -> tuple[list[Permission], int]:
+    async def list_permissions(self, *, page: int, page_size: int) -> tuple[list[Permission], int]:
         """Lista permissões paginadas (`GET /permissions`, `permission:list`)."""
         return await self._permissions.list_all(page=page, page_size=page_size)

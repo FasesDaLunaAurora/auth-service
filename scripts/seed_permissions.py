@@ -75,9 +75,7 @@ async def seed() -> None:
                 all_permissions.append(existing)
                 continue
 
-            permission = Permission(
-                code=code, description=f"Permissão '{code}' (seed automático)."
-            )
+            permission = Permission(code=code, description=f"Permissão '{code}' (seed automático).")
             await permission_repo.create(permission)
             all_permissions.append(permission)
             created_permissions += 1

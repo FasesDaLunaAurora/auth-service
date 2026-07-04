@@ -78,6 +78,7 @@ async def db_session(_engine) -> AsyncGenerator[AsyncSession, None]:
         await transaction.rollback()
         await connection.close()
 
+
 @pytest_asyncio.fixture(autouse=True)
 async def _reset_rate_limit_counters() -> AsyncGenerator[None, None]:
     """

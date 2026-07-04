@@ -73,6 +73,7 @@ async def test_create_role_with_duplicate_name_returns_conflict(
 
     assert second_response.status_code == 409
 
+
 @pytest.mark.asyncio
 async def test_assign_and_revoke_permission_on_a_freshly_created_role(
     client: AsyncClient, db_session

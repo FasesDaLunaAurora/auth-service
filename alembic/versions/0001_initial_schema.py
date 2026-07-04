@@ -5,6 +5,7 @@ Revises:
 Create Date: 2026-07-01 00:00:00
 
 """
+
 from __future__ import annotations
 
 from collections.abc import Sequence
@@ -34,9 +35,7 @@ def upgrade() -> None:
         sa.Column("is_active", sa.Boolean(), nullable=False, server_default=sa.true()),
         sa.Column("is_verified", sa.Boolean(), nullable=False, server_default=sa.false()),
         sa.Column("is_superuser", sa.Boolean(), nullable=False, server_default=sa.false()),
-        sa.Column(
-            "failed_login_attempts", sa.Integer(), nullable=False, server_default="0"
-        ),
+        sa.Column("failed_login_attempts", sa.Integer(), nullable=False, server_default="0"),
         sa.Column("locked_until", sa.DateTime(timezone=True), nullable=True),
         # Campos de MFA — ver nota de decisão em `app/models/user_model.py` (Etapa 6):
         # não previstos na Seção 5, mas exigidos pelos endpoints `/auth/mfa/*`.

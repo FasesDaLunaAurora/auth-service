@@ -13,7 +13,7 @@ from enum import StrEnum
 from typing import Final
 
 
-class TokenType(str, StrEnum):
+class TokenType(StrEnum):
     """Tipos de token emitidos pelo serviço de autenticação."""
 
     ACCESS = "access"
@@ -23,7 +23,7 @@ class TokenType(str, StrEnum):
     MFA_CHALLENGE = "mfa_challenge"
 
 
-class AuditAction(str, StrEnum):
+class AuditAction(StrEnum):
     """Ações auditáveis registradas pelo `audit_middleware` / services."""
 
     LOGIN_SUCCESS = "LOGIN_SUCCESS"
@@ -49,7 +49,7 @@ class AuditAction(str, StrEnum):
     ACCESS_DENIED = "ACCESS_DENIED"
 
 
-class ErrorCode(str, StrEnum):
+class ErrorCode(StrEnum):
     """
     Códigos de erro estáveis retornados no corpo padronizado de erro.
 
@@ -119,6 +119,5 @@ CORRELATION_ID_HEADER: Final[str] = "X-Request-ID"
 # enumeration attacks (não revelar se o e-mail existe ou não).
 GENERIC_AUTH_ERROR_MESSAGE: Final[str] = "E-mail ou senha incorretos."
 GENERIC_PASSWORD_RESET_MESSAGE: Final[str] = (
-    "Se o e-mail informado estiver cadastrado, você receberá instruções "
-    "para redefinição de senha."
+    "Se o e-mail informado estiver cadastrado, você receberá instruções para redefinição de senha."
 )

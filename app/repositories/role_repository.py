@@ -72,10 +72,7 @@ class RoleRepository:
         total = count_result.scalar_one()
 
         stmt = (
-            select(Role)
-            .order_by(Role.name.asc())
-            .offset((page - 1) * page_size)
-            .limit(page_size)
+            select(Role).order_by(Role.name.asc()).offset((page - 1) * page_size).limit(page_size)
         )
         result = await self._db.execute(stmt)
         return list(result.scalars().all()), total

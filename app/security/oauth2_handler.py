@@ -77,9 +77,7 @@ class OAuth2Handler:
         return f"{config.authorize_url}?{urlencode(params)}"
 
     @staticmethod
-    async def exchange_code_for_token(
-        config: OAuth2ProviderConfig, *, code: str
-    ) -> dict[str, str]:
+    async def exchange_code_for_token(config: OAuth2ProviderConfig, *, code: str) -> dict[str, str]:
         """
         Troca o `authorization_code` recebido no callback por um access
         token do provider externo.

@@ -81,9 +81,7 @@ async def test_register_raises_when_email_already_exists() -> None:
 async def test_login_with_locked_account_raises_account_locked_error() -> None:
     """Caso de borda obrigatório (Seção 9): login com conta bloqueada."""
     service, user_repo, *_ = _build_service()
-    locked_user = _make_user(
-        locked_until=datetime.now(UTC) + timedelta(minutes=10)
-    )
+    locked_user = _make_user(locked_until=datetime.now(UTC) + timedelta(minutes=10))
     user_repo.get_by_email.return_value = locked_user
 
     payload = LoginRequest(email=locked_user.email, password="CorrectPass1")

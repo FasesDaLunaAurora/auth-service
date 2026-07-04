@@ -65,9 +65,7 @@ def get_session_repository(db: DBSession) -> SessionRepository:
 UserRepositoryDep = Annotated[UserRepository, Depends(get_user_repository)]
 RoleRepositoryDep = Annotated[RoleRepository, Depends(get_role_repository)]
 PermissionRepositoryDep = Annotated[PermissionRepository, Depends(get_permission_repository)]
-RefreshTokenRepositoryDep = Annotated[
-    RefreshTokenRepository, Depends(get_refresh_token_repository)
-]
+RefreshTokenRepositoryDep = Annotated[RefreshTokenRepository, Depends(get_refresh_token_repository)]
 SessionRepositoryDep = Annotated[SessionRepository, Depends(get_session_repository)]
 
 

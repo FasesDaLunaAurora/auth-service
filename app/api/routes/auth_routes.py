@@ -130,9 +130,7 @@ async def logout_all(current_user: CurrentUser, auth_service: AuthServiceDep) ->
     status_code=status.HTTP_202_ACCEPTED,
     summary="Solicita recuperação de senha",
 )
-async def forgot_password(
-    payload: ForgotPasswordRequest, auth_service: AuthServiceDep
-) -> None:
+async def forgot_password(payload: ForgotPasswordRequest, auth_service: AuthServiceDep) -> None:
     await auth_service.forgot_password(payload)
 
 

@@ -34,9 +34,7 @@ async def _create_superuser_token(client: AsyncClient, db_session) -> str:
 
 
 @pytest.mark.asyncio
-async def test_create_list_update_and_delete_permission(
-    client: AsyncClient, db_session
-) -> None:
+async def test_create_list_update_and_delete_permission(client: AsyncClient, db_session) -> None:
     token = await _create_superuser_token(client, db_session)
     headers = {"Authorization": f"Bearer {token}"}
 
@@ -61,9 +59,7 @@ async def test_create_list_update_and_delete_permission(
     assert update_response.status_code == 200
     assert update_response.json()["description"] == "Exportar relatórios financeiros"
 
-    delete_response = await client.delete(
-        f"/api/v1/permissions/{permission_id}", headers=headers
-    )
+    delete_response = await client.delete(f"/api/v1/permissions/{permission_id}", headers=headers)
     assert delete_response.status_code == 204
 
 
@@ -89,9 +85,7 @@ async def test_create_permission_with_duplicate_code_returns_conflict(
     token = await _create_superuser_token(client, db_session)
     headers = {"Authorization": f"Bearer {token}"}
 
-    await client.post(
-        "/api/v1/permissions", headers=headers, json={"code": "widget:duplicate"}
-    )
+    await client.post("/api/v1/permissions", headers=headers, json={"code": "widget:duplicate"})
     second_response = await client.post(
         "/api/v1/permissions", headers=headers, json={"code": "widget:duplicate"}
     )

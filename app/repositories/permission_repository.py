@@ -38,8 +38,10 @@ class PermissionRepository:
         return list(result.scalars().all())
 
     async def exists_by_code(self, code: str) -> bool:
-        stmt = select(func.count()).select_from(Permission).where(
-            Permission.code == code.strip().lower()
+        stmt = (
+            select(func.count())
+            .select_from(Permission)
+            .where(Permission.code == code.strip().lower())
         )
         result = await self._db.execute(stmt)
         return (result.scalar_one() or 0) > 0

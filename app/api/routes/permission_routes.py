@@ -41,9 +41,7 @@ async def list_permissions(
     page: int = Query(default=1, ge=1),
     page_size: int = Query(default=20, ge=1, le=100),
 ) -> list[PermissionRead]:
-    permissions, _total = await permission_service.list_permissions(
-        page=page, page_size=page_size
-    )
+    permissions, _total = await permission_service.list_permissions(page=page, page_size=page_size)
     return [PermissionRead.model_validate(permission) for permission in permissions]
 
 

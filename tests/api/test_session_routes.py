@@ -34,9 +34,7 @@ async def _register_verify_and_login(client: AsyncClient, db_session, *, email: 
 
 @pytest.mark.asyncio
 async def test_list_sessions_shows_the_current_session(client: AsyncClient, db_session) -> None:
-    tokens = await _register_verify_and_login(
-        client, db_session, email="list-sessions@example.com"
-    )
+    tokens = await _register_verify_and_login(client, db_session, email="list-sessions@example.com")
     headers = {"Authorization": f"Bearer {tokens['access_token']}"}
 
     response = await client.get("/api/v1/sessions", headers=headers)
@@ -67,9 +65,7 @@ async def test_cannot_revoke_another_users_session(client: AsyncClient, db_sessi
     Checagem de posse do recurso (`SessionService.revoke_session`): um
     usuário não pode revogar a sessão de outro, mesmo sabendo o ID.
     """
-    victim_tokens = await _register_verify_and_login(
-        client, db_session, email="victim@example.com"
-    )
+    victim_tokens = await _register_verify_and_login(client, db_session, email="victim@example.com")
     attacker_tokens = await _register_verify_and_login(
         client, db_session, email="attacker@example.com"
     )
@@ -88,9 +84,7 @@ async def test_cannot_revoke_another_users_session(client: AsyncClient, db_sessi
 
 @pytest.mark.asyncio
 async def test_revoke_nonexistent_session_returns_404(client: AsyncClient, db_session) -> None:
-    tokens = await _register_verify_and_login(
-        client, db_session, email="revoke-404@example.com"
-    )
+    tokens = await _register_verify_and_login(client, db_session, email="revoke-404@example.com")
     headers = {"Authorization": f"Bearer {tokens['access_token']}"}
 
     response = await client.delete(

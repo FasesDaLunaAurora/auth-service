@@ -48,8 +48,10 @@ class UserRepository:
 
     async def exists_by_email(self, email: str) -> bool:
         """Verifica existência por e-mail sem carregar a entidade completa."""
-        stmt = select(func.count()).select_from(User).where(
-            User.email == email.strip().lower(), User.deleted_at.is_(None)
+        stmt = (
+            select(func.count())
+            .select_from(User)
+            .where(User.email == email.strip().lower(), User.deleted_at.is_(None))
         )
         result = await self._db.execute(stmt)
         return (result.scalar_one() or 0) > 0

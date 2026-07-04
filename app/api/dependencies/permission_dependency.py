@@ -31,9 +31,7 @@ def require_permission(permission_code: str) -> Callable[..., Coroutine[Any, Any
 
     async def _dependency(current_user: CurrentUser) -> User:
         if not RoleService.user_has_permission(current_user, permission_code):
-            raise PermissionDeniedError(
-                f"Esta operação exige a permissão '{permission_code}'."
-            )
+            raise PermissionDeniedError(f"Esta operação exige a permissão '{permission_code}'.")
         return current_user
 
     return _dependency

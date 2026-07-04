@@ -144,17 +144,13 @@ async def test_access_protected_route_without_token_returns_401(client: AsyncCli
 
 @pytest.mark.asyncio
 async def test_refresh_with_garbage_token_returns_401(client: AsyncClient) -> None:
-    response = await client.post(
-        "/api/v1/auth/refresh", json={"refresh_token": "not-a-real-jwt"}
-    )
+    response = await client.post("/api/v1/auth/refresh", json={"refresh_token": "not-a-real-jwt"})
     assert response.status_code == 401
 
 
 @pytest.mark.asyncio
 async def test_refresh_rotates_tokens_successfully(client: AsyncClient, db_session) -> None:
-    tokens = await _register_verify_and_login(
-        client, db_session, email="refresh-ok@example.com"
-    )
+    tokens = await _register_verify_and_login(client, db_session, email="refresh-ok@example.com")
 
     response = await client.post(
         "/api/v1/auth/refresh", json={"refresh_token": tokens["refresh_token"]}
@@ -176,9 +172,7 @@ async def test_refresh_with_already_used_token_revokes_all_sessions(
     falhar, e uma terceira tentativa com o token *novo* (emitido na
     primeira rotação) também deve falhar, pois o replay revoga tudo.
     """
-    tokens = await _register_verify_and_login(
-        client, db_session, email="replay-attack@example.com"
-    )
+    tokens = await _register_verify_and_login(client, db_session, email="replay-attack@example.com")
 
     first_refresh = await client.post(
         "/api/v1/auth/refresh", json={"refresh_token": tokens["refresh_token"]}
@@ -248,9 +242,7 @@ async def test_forgot_password_always_returns_202(client: AsyncClient, db_sessio
     await _register_and_verify(client, db_session, email=existing_email)
 
     for email in (existing_email, "does-not-exist@example.com"):
-        response = await client.post(
-            "/api/v1/auth/password/forgot", json={"email": email}
-        )
+        response = await client.post("/api/v1/auth/password/forgot", json={"email": email})
         assert response.status_code == 202
 
 
@@ -329,9 +321,7 @@ async def test_confirm_email_with_valid_token_marks_user_verified(
 
 @pytest.mark.asyncio
 async def test_confirm_email_with_invalid_token_returns_401(client: AsyncClient) -> None:
-    response = await client.post(
-        "/api/v1/auth/email/confirm", json={"token": "not-a-real-jwt"}
-    )
+    response = await client.post("/api/v1/auth/email/confirm", json={"token": "not-a-real-jwt"})
     assert response.status_code == 401
 
 

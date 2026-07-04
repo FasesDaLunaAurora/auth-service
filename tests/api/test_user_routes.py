@@ -65,9 +65,7 @@ async def test_get_me_returns_authenticated_user(client: AsyncClient, db_session
 
 
 @pytest.mark.asyncio
-async def test_list_users_without_permission_returns_403(
-    client: AsyncClient, db_session
-) -> None:
+async def test_list_users_without_permission_returns_403(client: AsyncClient, db_session) -> None:
     """Caso de borda obrigatório (Seção 9): acesso a rota protegida sem permissão."""
     access_token = await _create_authenticated_client(client, db_session)
 
@@ -136,9 +134,7 @@ async def test_list_users_as_superuser_returns_paginated_envelope(
         client, db_session, email="list-users-admin@example.com"
     )
 
-    response = await client.get(
-        "/api/v1/users", headers={"Authorization": f"Bearer {token}"}
-    )
+    response = await client.get("/api/v1/users", headers={"Authorization": f"Bearer {token}"})
 
     assert response.status_code == 200
     body = response.json()
@@ -148,9 +144,7 @@ async def test_list_users_as_superuser_returns_paginated_envelope(
 
 @pytest.mark.asyncio
 async def test_get_user_by_id_as_superuser(client: AsyncClient, db_session) -> None:
-    token, user_id = await _create_superuser(
-        client, db_session, email="get-user-admin@example.com"
-    )
+    token, user_id = await _create_superuser(client, db_session, email="get-user-admin@example.com")
 
     response = await client.get(
         f"/api/v1/users/{user_id}", headers={"Authorization": f"Bearer {token}"}
@@ -161,9 +155,7 @@ async def test_get_user_by_id_as_superuser(client: AsyncClient, db_session) -> N
 
 @pytest.mark.asyncio
 async def test_get_nonexistent_user_returns_404(client: AsyncClient, db_session) -> None:
-    token, _user_id = await _create_superuser(
-        client, db_session, email="get-404-admin@example.com"
-    )
+    token, _user_id = await _create_superuser(client, db_session, email="get-404-admin@example.com")
 
     response = await client.get(
         "/api/v1/users/00000000-0000-0000-0000-000000000000",
@@ -206,9 +198,7 @@ async def test_activate_and_deactivate_another_user(client: AsyncClient, db_sess
     assert deactivate_response.status_code == 200
     assert deactivate_response.json()["is_active"] is False
 
-    activate_response = await client.post(
-        f"/api/v1/users/{target.id}/activate", headers=headers
-    )
+    activate_response = await client.post(f"/api/v1/users/{target.id}/activate", headers=headers)
     assert activate_response.status_code == 200
     assert activate_response.json()["is_active"] is True
 
@@ -227,9 +217,7 @@ async def test_cannot_deactivate_own_account(client: AsyncClient, db_session) ->
 
 
 @pytest.mark.asyncio
-async def test_delete_user_soft_deletes_and_blocks_login(
-    client: AsyncClient, db_session
-) -> None:
+async def test_delete_user_soft_deletes_and_blocks_login(client: AsyncClient, db_session) -> None:
     admin_token, _admin_id = await _create_superuser(
         client, db_session, email="delete-admin@example.com"
     )
