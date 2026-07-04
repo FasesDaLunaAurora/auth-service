@@ -17,13 +17,13 @@ from __future__ import annotations
 
 import logging
 import sys
+from collections.abc import MutableMapping
 from typing import Any
 
 import structlog
 import structlog.typing
 
 from app.core.config import settings
-from collections.abc import MutableMapping
 
 _SENSITIVE_KEYS: frozenset[str] = frozenset(
     {
