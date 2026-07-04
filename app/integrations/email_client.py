@@ -31,6 +31,7 @@ class EmailClient:
     """Fachada de envio de e-mail usada por `AuthService`."""
 
     def _send_sync(self, *, to: str, subject: str, body: str) -> None:
+        assert settings.SMTP_HOST, "SMTP_HOST deve estar configurado para enviar e-mail."
         message = EmailMessage()
         message["From"] = settings.SMTP_FROM_EMAIL
         message["To"] = to

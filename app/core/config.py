@@ -124,7 +124,7 @@ def get_settings() -> Settings:
     compatível com o sistema de Dependency Injection do FastAPI
     (`Depends(get_settings)`), sem custo de re-parsing a cada chamada.
     """
-    return Settings()  # type: ignore[call-arg]
+    return Settings() 
 
 
 settings = get_settings()

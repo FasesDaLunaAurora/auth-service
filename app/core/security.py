@@ -22,7 +22,7 @@ primitivas e suas próprias exceções de baixo nível.
 from __future__ import annotations
 
 import hashlib
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Any
 
 from jose import ExpiredSignatureError, JWTError, jwt
@@ -67,7 +67,7 @@ _password_context = CryptContext(
 
 def hash_password(plain_password: str) -> str:
     """Gera o hash de uma senha em texto puro usando o scheme configurado."""
-    return _password_context.hash(plain_password)
+    return str(_password_context.hash(plain_password))
 
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
@@ -78,7 +78,7 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
     próprio `passlib`), mitigando ataques de timing.
     """
     try:
-        return _password_context.verify(plain_password, hashed_password)
+        return bool(_password_context.verify(plain_password, hashed_password))
     except ValueError:
         # Hash em formato desconhecido/corrompido — tratado como "não
         # confere", nunca propagado como erro 500 por esta camada.
@@ -87,7 +87,7 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
 
 def needs_rehash(hashed_password: str) -> bool:
     """Indica se um hash existente deveria ser regenerado (scheme desatualizado)."""
-    return _password_context.needs_update(hashed_password)
+    return bool(_password_context.needs_update(hashed_password))
 
 
 # --- JWT ---
@@ -102,10 +102,12 @@ def encode_jwt(claims: dict[str, Any]) -> str:
     `python-jose` automaticamente para as claims padrão `exp`/`iat`).
     """
     try:
-        return jwt.encode(
-            claims,
-            settings.JWT_SECRET_KEY.get_secret_value(),
-            algorithm=settings.JWT_ALGORITHM,
+        return str(
+            jwt.encode(
+                claims,
+                settings.JWT_SECRET_KEY.get_secret_value(),
+                algorithm=settings.JWT_ALGORITHM,
+            )
         )
     except JWTError as exc:
         raise TokenEncodeError("Falha ao codificar o token JWT.") from exc
@@ -120,11 +122,13 @@ def decode_jwt(token: str) -> dict[str, Any]:
     biblioteca `jose` diretamente.
     """
     try:
-        return jwt.decode(
-            token,
-            settings.JWT_SECRET_KEY.get_secret_value(),
-            algorithms=[settings.JWT_ALGORITHM],
-            options={"require_exp": True, "require_iat": True},
+        return dict(
+            jwt.decode(
+                token,
+                settings.JWT_SECRET_KEY.get_secret_value(),
+                algorithms=[settings.JWT_ALGORITHM],
+                options={"require_exp": True, "require_iat": True},
+            )
         )
     except ExpiredSignatureError as exc:
         raise TokenExpiredError("Token JWT expirado.") from exc
@@ -134,7 +138,7 @@ def decode_jwt(token: str) -> dict[str, Any]:
 
 def utcnow() -> datetime:
     """Horário atual em UTC — usado para calcular `iat`/`exp` de forma consistente."""
-    return datetime.now(UTC)
+    return datetime.now(timezone.utc)
 
 
 def hash_opaque_token(raw_value: str) -> str:

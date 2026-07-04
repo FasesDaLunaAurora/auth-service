@@ -20,8 +20,10 @@ import sys
 from typing import Any
 
 import structlog
+import structlog.typing
 
 from app.core.config import settings
+from collections.abc import MutableMapping
 
 _SENSITIVE_KEYS: frozenset[str] = frozenset(
     {
@@ -43,8 +45,8 @@ _SENSITIVE_KEYS: frozenset[str] = frozenset(
 def _scrub_sensitive_fields(
     _logger: structlog.types.WrappedLogger,
     _method_name: str,
-    event_dict: dict[str, Any],
-) -> dict[str, Any]:
+    event_dict: MutableMapping[str, Any],
+) -> MutableMapping[str, Any]:
     """Processor do structlog que redige campos sensíveis antes de emitir o log."""
     for key in list(event_dict.keys()):
         if key.lower() in _SENSITIVE_KEYS:
@@ -90,6 +92,6 @@ def configure_logging() -> None:
     )
 
 
-def get_logger(name: str) -> structlog.types.BindableLogger:
+def get_logger(name: str) -> structlog.typing.FilteringBoundLogger:
     """Retorna um logger estruturado nomeado (usar `__name__` do módulo chamador)."""
-    return structlog.get_logger(name)
+    return structlog.get_logger(name)  # type: ignore[no-any-return]

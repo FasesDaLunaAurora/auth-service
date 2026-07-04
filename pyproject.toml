@@ -15,6 +15,14 @@ dependencies = [
     "pydantic>=2.7.0",
     "pydantic-settings>=2.3.0",
     "passlib[bcrypt]>=1.7.4",
+    # `passlib` 1.7.4 (última versão, sem atualizações desde 2020) quebra
+    # com `bcrypt` 4.1+: a lib removeu o atributo `__about__.__version__`
+    # que o passlib usa para detectar a versão do backend, e o fallback
+    # de detecção do passlib então tromba com a checagem mais rígida do
+    # bcrypt 4.1+ para o limite de 72 bytes, levantando `ValueError` já
+    # na inicialização da aplicação. Trava-se `bcrypt` em `4.0.x`
+    # (última faixa compatível) até o passlib lançar uma versão corrigida
+    # ou este projeto migrar para `argon2` como scheme padrão.
     "bcrypt>=4.0.1,<4.1",
     "argon2-cffi>=23.1.0",
     "python-jose[cryptography]>=3.3.0",
@@ -41,6 +49,14 @@ requires = ["setuptools>=68.0"]
 build-backend = "setuptools.build_meta"
 
 [tool.setuptools.packages.find]
+# Sem isso, o `setuptools` tenta descobrir pacotes automaticamente no
+# layout "flat" (tudo na raiz do repo) e encontra `alembic/` como um
+# candidato a pacote de nível superior também (por ter arquivos `.py`
+# soltos, mesmo sem `__init__.py`), além de `app/` — e recusa buildar
+# por ambiguidade ("Multiple top-level packages discovered"). `alembic/`,
+# `tests/` e `scripts/` nunca devem ser instalados como pacote Python;
+# eles são consumidos via caminho de arquivo (`alembic upgrade head`,
+# `pytest`, `python scripts/...py`), não via `import`.
 include = ["app*"]
 
 [tool.ruff]
@@ -49,6 +65,13 @@ target-version = "py311"
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B", "SIM", "N"]
+# B008: permitido — é o padrão do FastAPI usar `Depends(...)` como valor
+# default de parâmetro de rota, o que essa regra normalmente reprova.
+# N818: `DomainException` (app/exceptions/base_exception.py) e suas
+# subclasses são nomeadas deliberadamente sem sufixo `Error`, seguindo
+# a nomenclatura já estabelecida na arquitetura do projeto (Etapa 6) e
+# usada em dezenas de arquivos — renomear teria custo alto sem ganho
+# real de clareza.
 ignore = ["B008", "N818"]
 
 [tool.mypy]
@@ -60,6 +83,15 @@ disallow_any_generics = true
 warn_return_any = true
 warn_unused_ignores = true
 exclude = ["tests/", "alembic/"]
+
+# `jose` (python-jose) e `passlib` não publicam pacotes de stubs oficiais
+# compatíveis com o `mypy` strict — em vez de instalar stubs de terceiros
+# de qualidade incerta, tratamos essas duas libs como não tipadas
+# explicitamente, o que é a prática recomendada pelo próprio mypy para
+# dependências sem stubs mantidos oficialmente.
+[[tool.mypy.overrides]]
+module = ["jose.*", "passlib.*"]
+ignore_missing_imports = true
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"

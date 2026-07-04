@@ -133,7 +133,7 @@ async def _handle_unexpected_exception(request: Request, exc: Exception) -> JSON
 
 def register_exception_handlers(app: FastAPI) -> None:
     """Registra todos os handlers de exceção na instância do FastAPI (chamado em `main.py`)."""
-    app.add_exception_handler(DomainException, _handle_domain_exception)
-    app.add_exception_handler(RequestValidationError, _handle_validation_error)
-    app.add_exception_handler(StarletteHTTPException, _handle_http_exception)
+    app.add_exception_handler(DomainException, _handle_domain_exception)  # type: ignore[arg-type]
+    app.add_exception_handler(RequestValidationError, _handle_validation_error)  # type: ignore[arg-type]
+    app.add_exception_handler(StarletteHTTPException, _handle_http_exception)  # type: ignore[arg-type]
     app.add_exception_handler(Exception, _handle_unexpected_exception)
