@@ -53,7 +53,7 @@ Sua aplicação guarda os tokens emitidos e os reenvia a cada requisição — t
 
 Antes de integrar, confirme com quem administra o Auth Service:
 
-1. **URL base** do serviço (ex: `https://auth.suaempresa.com/api/v1` ou `http://localhost:8000/api/v1` em desenvolvimento).
+1. **URL base** do serviço (ex: `https://auth.dominio.com/api/v1` ou `http://localhost:8000/api/v1` em desenvolvimento).
 2. **Origem do seu frontend registrada em `CORS_ALLOWED_ORIGINS`** (ver [seção 11](#11-cors)) — sem isso, o navegador bloqueia as requisições.
 3. **Permissões e roles já existentes** (via `scripts/seed_permissions.py`) que fazem sentido para o seu caso de uso, ou solicite a criação de novas via `POST /roles` / `POST /permissions` (requer permissão administrativa).
 4. Decida se seu caso de uso precisa de **MFA obrigatório** para certos perfis de usuário — o Auth Service suporta, mas habilitar é uma ação por usuário (`POST /auth/mfa/enable`), não uma política global automática.
@@ -91,7 +91,7 @@ Exemplo de página de confirmação (frontend):
 // Rota da sua app: /confirmar-email?token=xxxxx
 const token = new URLSearchParams(window.location.search).get("token");
 
-const response = await fetch("https://auth.suaempresa.com/api/v1/auth/email/confirm", {
+const response = await fetch("https://auth.dominio.com/api/v1/auth/email/confirm", {
   method: "POST",
   headers: { "Content-Type": "application/json" },
   body: JSON.stringify({ token }),

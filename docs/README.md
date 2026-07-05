@@ -1,21 +1,24 @@
 # docs/
 
-Esta pasta é reservada para documentação **estendida** do projeto — conteúdo que não cabe (ou polui) o `README.md` da raiz, mas que uma equipe mantendo este serviço em produção provavelmente vai precisar eventualmente.
+Documentação estendida do projeto — cada guia é escrito para um público diferente, então comece pelo que corresponde ao que você está tentando fazer:
 
-## Documentos disponíveis
+| Documento | Para quem / quando usar |
+|---|---|
+| [`SPEC.md`](./SPEC.md) | Especificação técnica completa — arquitetura, modelagem de dados, contrato de endpoints. Ponto de partida para entender o projeto por inteiro. |
+| [`development-guide.md`](./development-guide.md) | Rodar e desenvolver o projeto localmente: pré-requisitos (Docker Desktop, Docker Engine ou Podman), configuração, testes, migrações, qualidade de código e troubleshooting. |
+| [`deployment-guide.md`](./deployment-guide.md) | Colocar o serviço em produção: PostgreSQL e Redis (gerenciados ou self-hosted), build da imagem, migrações no fluxo de deploy, VPS vs. PaaS, HTTPS, observabilidade. |
+| [`integration-guide.md`](./integration-guide.md) | Integrar outra aplicação (frontend ou backend) a este serviço: fluxos de login/MFA, onde guardar tokens, renovação automática, RBAC no cliente, erros comuns. |
+| [`usage-guide.md`](./usage-guide.md) | O que a API faz do ponto de vista funcional: tipos de usuário, ciclo de vida da conta, fluxos completos, RBAC na prática, tabela de endpoints. |
+| [`permissions-reference.md`](./permissions-reference.md) | Dicionário detalhado de cada permissão do RBAC: o que libera, nível de risco, combinações perigosas, exemplos de roles por função. |
 
-- **[`integration-guide.md`](./integration-guide.md)** — como uma aplicação cliente (frontend, backend, ou ambos) deve se integrar ao Auth Service: fluxos de login/registro/MFA, onde guardar tokens, renovação automática, RBAC no cliente, padrões de integração backend-a-backend, CORS, e uma tabela de erros comuns.
-- **[`deployment-guide.md`](./deployment-guide.md)** — como subir a aplicação, o PostgreSQL e o Redis em produção: diferenças entre dev e produção, opções de banco/Redis gerenciados vs. self-hosted, build e réplicas da aplicação, migrações no fluxo de deploy, VPS com Docker Compose vs. PaaS, HTTPS, observabilidade e checklists de segurança/deploy.
-- **[`usage-guide.md`](./usage-guide.md)** — o que a API faz do ponto de vista funcional: tipos de usuário, ciclo de vida da conta, fluxos completos (cadastro, login, MFA, recuperação de senha), como o RBAC funciona na prática, fluxo de administrador (criar roles/permissões, promover um usuário), gestão de sessões, e uma tabela de todos os endpoints com a permissão exigida por cada um.
-- **[`permissions-reference.md`](./permissions-reference.md)** — dicionário detalhado de cada permissão do sistema: o que libera, nível de risco, quais combinações são perigosas (escalonamento de privilégio), e exemplos de roles por função seguindo o princípio de menor privilégio.
+## Convenções para novos documentos
 
-## O que mais colocar aqui, conforme o projeto cresce
+- Um guia por público/objetivo — evite misturar "como rodar localmente" com "como fazer deploy" no mesmo arquivo.
+- Prefira exemplos de comando reais (copiáveis) a descrições abstratas.
+- Se um documento ficar desatualizado em relação ao código, corrija-o no mesmo PR que muda o comportamento — documentação errada é pior que documentação ausente.
 
-Candidatos naturais a próximos documentos:
+## Candidatos a próximos documentos
 
-- **`architecture/`** — diagramas de arquitetura (C4, sequência dos fluxos de autenticação, etc.), se o projeto crescer a ponto de precisar deles além do diagrama textual já presente na especificação original.
-- **`adr/`** — *Architecture Decision Records*: um arquivo Markdown por decisão arquitetural relevante (ex: "por que JWT em vez de sessão opaca", "por que RBAC simples sem hierarquia de roles"). O `README.md` da raiz já lista as decisões tomadas durante a geração inicial deste projeto (seção "Decisões de implementação") — ADRs formais valem a pena a partir do momento em que decisões *futuras* precisarem desse nível de registro individual.
-- **`postman/`** ou **`insomnia/`** — coleções exportadas para testar a API manualmente, como alternativa ao Swagger UI (`/docs`).
-- **`runbooks/`** — procedimentos operacionais para incidentes comuns (ex: "como rotacionar o `JWT_SECRET_KEY` sem derrubar sessões ativas", "como identificar um ataque de credential stuffing nos logs de auditoria").
-
-Se você é a próxima pessoa adicionando algo aqui, crie a subpasta correspondente e um `README.md` dentro dela explicando o que é.
+- **`adr/`** — *Architecture Decision Records* individuais, se decisões futuras precisarem de registro mais formal do que uma linha na lista de decisões do `development-guide.md`.
+- **`postman/`** ou **`insomnia/`** — coleções para testar a API manualmente, como alternativa ao Swagger UI (`/docs`).
+- **`runbooks/`** — procedimentos para incidentes comuns (rotacionar `JWT_SECRET_KEY` sem derrubar sessões ativas, identificar um ataque de credential stuffing nos logs de auditoria, etc.).
