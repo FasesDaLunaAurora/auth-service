@@ -1,10 +1,9 @@
 """
-Engine assíncrona e fábrica de sessões do SQLAlchemy 2.x.
+Engine assíncrona e fábrica de sessões do SQLAlchemy.
 
-Este módulo é consumido exclusivamente por `app/api/dependencies/db_dependency.py`
-(camada de API) e por `tests/conftest.py`. A camada de `repositories` recebe
-a sessão via injeção de dependência — ela nunca importa este módulo
-diretamente, o que preserva o isolamento exigido pela Clean Architecture.
+Este módulo deve ser consumido apenas pelas dependências da API e testes.
+Os repositórios recebem a sessão por injeção de dependência e nunca importam
+este arquivo diretamente, garantindo o desacoplamento.
 """
 
 from __future__ import annotations
@@ -27,9 +26,7 @@ engine: AsyncEngine = create_async_engine(
     pool_size=settings.DATABASE_POOL_SIZE,
     max_overflow=settings.DATABASE_MAX_OVERFLOW,
     pool_timeout=settings.DATABASE_POOL_TIMEOUT_SECONDS,
-    # `pool_pre_ping` evita erros de "conexão fechada pelo servidor" em
-    # conexões ociosas de longa duração — importante para um serviço que
-    # fica no ar 24/7.
+    # pool_pre_ping testa conexões ociosas antes do uso para evitar erros de queda.
     pool_pre_ping=True,
 )
 
@@ -44,12 +41,11 @@ AsyncSessionFactory = async_sessionmaker(
 
 async def get_db_session() -> AsyncGenerator[AsyncSession, None]:
     """
-    Gerador de sessão assíncrona para uso com `Depends()` do FastAPI.
-
-    Fecha a sessão automaticamente ao final da requisição e faz rollback
-    em caso de exceção não tratada, evitando conexões "sujas" retornarem
-    ao pool.
+    Gerador de sessão assíncrona para o `Depends()` do FastAPI.
+    Fecha a sessão ao final da requisição e dá rollback em caso de erro,
+    evitando conexões presas ou corrompidas no pool.
     """
+
     async with AsyncSessionFactory() as session:
         try:
             yield session
@@ -63,12 +59,10 @@ async def get_db_session() -> AsyncGenerator[AsyncSession, None]:
 @asynccontextmanager
 async def session_scope() -> AsyncGenerator[AsyncSession, None]:
     """
-    Context manager para uso fora do ciclo de requisição HTTP (ex: scripts
-    de manutenção, jobs, testes de integração de `repositories`).
-
-    Diferente de `get_db_session`, este helper também realiza `commit()`
-    automático ao final do bloco `with`, caso nenhuma exceção ocorra.
+    Context manager para scripts, background jobs ou testes (fora do HTTP).
+    Realiza o `commit()` automático ao final do bloco `with` se não houver erros.
     """
+
     async with AsyncSessionFactory() as session:
         try:
             yield session
@@ -81,5 +75,5 @@ async def session_scope() -> AsyncGenerator[AsyncSession, None]:
 
 
 async def dispose_engine() -> None:
-    """Libera todas as conexões do pool. Chamado no shutdown da aplicação."""
+    """Fecha todas as conexões do pool no shutdown da aplicação."""
     await engine.dispose()

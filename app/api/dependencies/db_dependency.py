@@ -1,11 +1,9 @@
 """
-Injeção de dependências de infraestrutura: sessão de banco, repositórios
-e services.
+Injeção de dependências: sessão do banco, repositórios e services.
 
-Regra de camada (Seção 3): `api/dependencies` monta e entrega instâncias
-prontas para uso pelas rotas, mas nunca acessa o banco diretamente —
-toda leitura/escrita passa pelos `repositories`, montados aqui apenas
-por composição.
+Garante o desacoplamento: este arquivo monta e entrega as instâncias prontas
+para as rotas, mas não toca no banco. Toda leitura/escrita deve passar
+obrigatoriamente pelos repositórios instanciados aqui.
 """
 
 from __future__ import annotations
@@ -31,7 +29,7 @@ from app.services.user_service import UserService
 
 
 async def get_db() -> AsyncGenerator[AsyncSession, None]:
-    """Alias curto de `get_db_session`, para uso ergonômico em `Depends(get_db)`."""
+    """Alias para `get_db_session`, facilitando o uso com `Depends(get_db)`."""
     async for session in get_db_session():
         yield session
 
@@ -74,12 +72,11 @@ SessionRepositoryDep = Annotated[SessionRepository, Depends(get_session_reposito
 
 def get_email_client() -> EmailClient:
     """
-    Instanciado a cada requisição (não é `lru_cache`): `EmailClient` não
-    guarda estado de conexão persistente (cada envio abre sua própria
-    conexão SMTP via `asyncio.to_thread`), então não há custo relevante
-    em recriá-lo — e evita compartilhar estado mutável entre requisições
-    concorrentes.
+    Instanciado por requisição. Não usa `lru_cache` porque o `EmailClient`
+    não guarda estado. Cada envio abre sua própria conexão SMTP, então o
+    custo de recriar é irrelevante e evita problemas de concorrência.
     """
+
     return EmailClient()
 
 

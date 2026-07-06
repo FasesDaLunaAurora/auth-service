@@ -1,7 +1,6 @@
 """
-Testes de integração de `UserRepository` — rodam contra o banco de
-dados real de teste (fixture `db_session`, ver `tests/conftest.py`),
-conforme a Seção 9.
+Testes de integração do `UserRepository`.
+Rodam diretamente contra o banco de dados de teste usando a fixture `db_session`.
 """
 
 from __future__ import annotations

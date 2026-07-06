@@ -1,4 +1,8 @@
-"""Testes unitários de `MFAHandler` — TOTP (RFC 6238), sem tocar banco/HTTP."""
+"""
+Testes unitários do `MFAHandler`.
+Valida a lógica do TOTP (RFC 6238) de forma isolada, sem acessar
+o banco de dados ou fazer chamadas HTTP.
+"""
 
 from __future__ import annotations
 
@@ -37,8 +41,8 @@ def test_verify_code_accepts_the_currently_valid_code() -> None:
 
 def test_verify_code_rejects_a_wrong_code() -> None:
     secret = MFAHandler.generate_secret()
-    # Um código fixo com dígitos válidos, mas quase certamente incorreto
-    # para o secret gerado aleatoriamente acima.
+    # Um código qualquer que dificilmente vai bater com a chave aleatória gerada acima.
+
     assert MFAHandler.verify_code(secret, "000000") is False
 
 
@@ -50,10 +54,11 @@ def test_verify_code_rejects_malformed_input() -> None:
 
 def test_verify_code_tolerates_one_window_of_clock_skew() -> None:
     """
-    Um código válido para a janela de tempo *anterior* ainda deve ser
-    aceito (`valid_window=1` por padrão) — mitiga pequenas diferenças de
-    relógio entre cliente e servidor, conforme prática comum de TOTP.
+    Garante que um código da janela de tempo anterior ainda seja aceito.
+    Isso evita falhas caso o relógio do dispositivo do usuário esteja um
+    pouco atrasado em relação ao servidor.
     """
+
     secret = MFAHandler.generate_secret()
     previous_window_time = time.time() - 30  # uma janela de 30s atrás
     previous_code = MFAHandler.generate_current_code(secret, for_time=previous_window_time)

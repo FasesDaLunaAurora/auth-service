@@ -1,5 +1,5 @@
 """
-Regras de negócio de gestão de usuários (`/api/v1/users`).
+Regras de negócio de gestão de usuários.
 """
 
 from __future__ import annotations
@@ -23,8 +23,6 @@ from app.security.password_handler import PasswordHandler
 
 
 class UserService:
-    """Orquestra as regras de negócio de `User`."""
-
     def __init__(
         self,
         user_repository: UserRepository,
@@ -36,14 +34,16 @@ class UserService:
         self._sessions = session_repository
 
     async def get_by_id_or_raise(self, user_id: uuid.UUID) -> User:
-        """Busca um usuário por ID, levantando `ResourceNotFoundError` se ausente."""
+        """Busca um usuário por ID e lança um erro caso não seja encontrado."""
+
         user = await self._users.get_by_id(user_id)
         if user is None:
             raise ResourceNotFoundError("Usuário")
         return user
 
     async def update_me(self, current_user: User, payload: UserUpdateMe) -> User:
-        """Atualiza o perfil do próprio usuário autenticado (`PATCH /users/me`)."""
+        """Atualiza os dados do perfil do próprio usuário logado (`PATCH /users/me`)."""
+
         if payload.full_name is not None:
             current_user.full_name = payload.full_name
         await self._users.update(current_user)
@@ -53,10 +53,10 @@ class UserService:
         """
         Altera a senha do próprio usuário (`PATCH /users/me/password`).
 
-        Revoga todos os refresh tokens/sessões existentes após a troca —
-        alterar a senha é um evento de segurança que deve encerrar
-        sessões antigas em outros dispositivos.
+        Após a troca, encerra todas as sessões e cancela os tokens antigos.
+        Fazemos isso por segurança para derrubar o acesso em outros dispositivos.
         """
+
         is_valid = PasswordHandler.verify(payload.current_password, current_user.hashed_password)
         if not is_valid:
             raise InvalidCurrentPasswordError()
@@ -69,11 +69,10 @@ class UserService:
     async def list_users(
         self, *, page: int, page_size: int, search: str | None
     ) -> tuple[list[User], int]:
-        """Lista usuários paginados (`GET /users`, protegido por `user:list`)."""
         return await self._users.list_paginated(page=page, page_size=page_size, search=search)
 
     async def admin_update(self, user_id: uuid.UUID, payload: UserAdminUpdate) -> User:
-        """Atualização administrativa de um usuário (`PATCH /users/{id}`, `user:update`)."""
+        """Atualiza os dados de um usuário via admin (`PATCH /users/{id}`)."""
         user = await self.get_by_id_or_raise(user_id)
         if payload.full_name is not None:
             user.full_name = payload.full_name
@@ -83,7 +82,6 @@ class UserService:
         return user
 
     async def soft_delete(self, user_id: uuid.UUID, *, requesting_user_id: uuid.UUID) -> None:
-        """Exclusão lógica de um usuário (`DELETE /users/{id}`, `user:delete`)."""
         if user_id == requesting_user_id:
             raise CannotDeactivateSelfError()
         user = await self.get_by_id_or_raise(user_id)
@@ -92,7 +90,6 @@ class UserService:
         await self._sessions.revoke_all_for_user(user.id)
 
     async def activate(self, user_id: uuid.UUID) -> User:
-        """Ativa uma conta (`POST /users/{id}/activate`, `user:update`)."""
         user = await self.get_by_id_or_raise(user_id)
         if user.is_active:
             raise UserAlreadyActiveError()
@@ -102,11 +99,12 @@ class UserService:
 
     async def deactivate(self, user_id: uuid.UUID, *, requesting_user_id: uuid.UUID) -> User:
         """
-        Desativa uma conta (`POST /users/{id}/deactivate`, `user:update`).
+        Desativa uma conta de usuário (`POST /users/{id}/deactivate`).
 
-        Também revoga sessões/refresh tokens ativos, já que uma conta
-        desativada não deve continuar autenticada com tokens já emitidos.
+        Também encerra todas as sessões e cancela os tokens ativos para
+        garantir que a conta desativada não continue conectada.
         """
+
         if user_id == requesting_user_id:
             raise CannotDeactivateSelfError()
         user = await self.get_by_id_or_raise(user_id)

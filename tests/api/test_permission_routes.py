@@ -1,5 +1,5 @@
 """
-Testes de API para `/api/v1/permissions` — CRUD completo (Seção 6).
+Testes de API para `/api/v1/permissions` (CRUD completo).
 """
 
 from __future__ import annotations

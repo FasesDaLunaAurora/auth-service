@@ -15,15 +15,15 @@ RUN python -m venv /opt/venv
 ENV PATH="/opt/venv/bin:$PATH"
 
 COPY pyproject.toml ./
-# Instala apenas as dependências de execução (sem o extra `dev`), mantendo
-# a imagem final mínima, conforme exigido pela Seção 10.
+# Instala apenas as dependências de execução para manter a imagem final o mais leve possível.
+
 RUN pip install --upgrade pip \
     && pip install .
 
 # ==============================================================================
-# Stage 2: test — builder + dependências de desenvolvimento (pytest, ruff,
-# mypy). Usada apenas pelo serviço `test` do docker-compose.yml, nunca em
-# produção — mantém a imagem `runtime` (stage seguinte) mínima.
+# Etapa de teste — Inclui ferramentas de desenvolvimento (pytest, ruff, mypy).
+# Usada só pelo docker-compose de teste, garantindo que a imagem de produção
+# continue leve e sem arquivos desnecessários.
 # ==============================================================================
 FROM builder AS test
 
@@ -35,7 +35,7 @@ COPY . .
 CMD ["pytest", "--cov=app", "--cov-report=term-missing"]
 
 # ==============================================================================
-# Stage 3: runtime — imagem final mínima, sem ferramentas de build/teste
+# Etapa de runtime — imagem final mínima, sem ferramentas de build/teste
 # ==============================================================================
 FROM python:3.11-slim AS runtime
 

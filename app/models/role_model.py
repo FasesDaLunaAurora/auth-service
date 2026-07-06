@@ -1,10 +1,8 @@
 """
-Entidade `Role` e tabelas associativas RBAC (`user_roles`, `role_permissions`).
+Modelo de Role e tabelas de relacionamento (N:N) do RBAC.
 
-As tabelas associativas puras (sem colunas extras além das FKs) são
-modeladas como `Table` do Core do SQLAlchemy, e não como classes ORM —
-não há necessidade de uma entidade rica para uma tabela N:N sem atributos
-próprios, conforme recomendado pelo próprio SQLAlchemy 2.x.
+As tabelas associativas (`user_roles` e `role_permissions`) usam o padrão
+`Table` do Core por conterem apenas FKs, dispensando um modelo ORM próprio.
 """
 
 from __future__ import annotations
@@ -55,12 +53,8 @@ role_permissions = Table(
 
 class Role(UUIDPrimaryKeyMixin, Base):
     """
-    Papel (Role) atribuível a um ou mais usuários, agregando `Permission`s.
-
-    RBAC deste serviço é deliberadamente simples (sem hierarquia de
-    roles) — a especificação não define herança entre roles, então
-    optei por não inventar essa complexidade (decisão registrada no
-    changelog).
+    Papel (Role) do usuário que agrupa permissões do sistema.
+    O modelo segue um padrão RBAC simples, sem hierarquia ou herança entre os papéis.
     """
 
     __tablename__ = "roles"

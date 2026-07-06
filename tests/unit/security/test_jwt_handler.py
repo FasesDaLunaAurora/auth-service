@@ -1,6 +1,8 @@
 """
-Testes unitários de `JWTHandler` — cobre os casos de borda obrigatórios
-da Seção 9 relacionados a token: expiração e tipo incompatível.
+Testes unitários do `JWTHandler`.
+
+Valida o comportamento dos tokens em cenários de erro, como tempo
+expirado e tipos incompatíveis.
 """
 
 from __future__ import annotations
@@ -47,7 +49,6 @@ def test_decode_with_wrong_expected_type_raises_type_mismatch() -> None:
 
 
 def test_expired_access_token_raises_token_expired_error() -> None:
-    """Caso de borda obrigatório (Seção 9): expiração de access token."""
     user_id = uuid.uuid4()
 
     with patch(

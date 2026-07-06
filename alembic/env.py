@@ -1,10 +1,9 @@
 """
-Ambiente de execução do Alembic, configurado para engine assíncrona.
+Configura o ambiente do Alembic com suporte a operações assíncronas.
 
-Importa `Base.metadata` (via `app/database/base.py`) e, futuramente, todos
-os `models` (Etapa 2), para que `alembic revision --autogenerate` consiga
-detectar o schema completo. A URL de conexão é obtida de
-`app.core.config.settings`, nunca duplicada em `alembic.ini`.
+Usa o `Base.metadata` e os modelos importados para que o comando
+`alembic revision --autogenerate` consiga mapear o banco sozinho.
+A string de conexão vem direto do `settings`, evitando duplicar no `.ini`.
 """
 
 from __future__ import annotations
@@ -19,8 +18,7 @@ from alembic import context
 from app.core.config import settings
 from app.database.base import Base
 
-# Importar todos os módulos de `app.models` aqui garante que suas classes
-# sejam registradas em `Base.metadata` antes do autogenerate.
+# Importe os modelos aqui para registrá-los no metadata antes do autogenerate.
 from app.models import (  # noqa: E402,F401
     permission_model,
     refresh_token_model,
@@ -36,13 +34,12 @@ if config.config_file_name is not None:
 
 target_metadata = Base.metadata
 
-# Sobrescreve a URL do `alembic.ini` com a URL validada via Pydantic
-# Settings — mantém uma única fonte de verdade para a connection string.
+# Injeta a URL do Pydantic no Alembic para manter a string de conexão centralizada.
 config.set_main_option("sqlalchemy.url", str(settings.DATABASE_URL))
 
 
 def run_migrations_offline() -> None:
-    """Executa migrações em modo 'offline' (gera SQL sem conectar ao banco)."""
+    """Roda as migrações offline gerando apenas o script SQL."""
     url = config.get_main_option("sqlalchemy.url")
     context.configure(
         url=url,
@@ -69,7 +66,7 @@ def _do_run_migrations(connection: Connection) -> None:
 
 
 async def run_migrations_online() -> None:
-    """Executa migrações em modo 'online', usando uma engine assíncrona real."""
+    """Roda as migrações online usando uma conexão assíncrona real."""
     connectable: AsyncEngine = create_async_engine(
         config.get_main_option("sqlalchemy.url"),
         poolclass=pool.NullPool,

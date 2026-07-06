@@ -73,7 +73,7 @@ sudo chmod 600 /etc/auth-service/.env
 Serviços como **Amazon RDS**, **Google Cloud SQL**, **Supabase**, **Neon** ou **Railway/Render Postgres add-on** cuidam de backup automático, failover e patches de segurança — isso tira de você a responsabilidade mais arriscada de operar um banco de produção manualmente. Recomendado para a maioria dos casos.
 
 Passos gerais (variam por provedor):
-1. Provisione uma instância Postgres **17** (versão exigida pela Seção 2 do projeto).
+1. Provisione uma instância Postgres **17** (versão exigida pelo projeto).
 2. Crie um banco de dados e um usuário dedicado (não use o usuário `postgres` root da instância).
 3. Anote a connection string e monte a `DATABASE_URL` no formato assíncrono:
    ```
@@ -87,7 +87,7 @@ Passos gerais (variam por provedor):
 
 ### Alternativa: Postgres self-hosted em container
 
-Se você optar por rodar o próprio Postgres (ex: VPS único, seção 7), use volume persistente e configure backup:
+Se você optar por rodar o próprio Postgres, use volume persistente e configure backup:
 
 ```yaml
 db:
@@ -99,7 +99,7 @@ db:
     POSTGRES_DB: ${POSTGRES_DB}
   volumes:
     - auth_service_postgres_data:/var/lib/postgresql/data
-  # Em produção, NÃO exponha a porta 5432 publicamente — remova o
+  # Em produção, NÃO exponha a porta 5432 publicamente, remova o
   # mapeamento "ports:" a menos que precise acessar de fora do host.
 ```
 
@@ -131,7 +131,7 @@ O Redis aqui só é usado para **contadores de rate limiting** (`RateLimitMiddle
 redis:
   image: redis:7-alpine
   restart: always
-  # Sem "ports:" expostas publicamente — só a rede interna entre
+  # Sem "ports:" expostas publicamente, só a rede interna entre
   # app e redis precisa alcançar essa porta.
 ```
 
@@ -191,7 +191,7 @@ Por quê isso importa: se você tiver **múltiplas réplicas** subindo ao mesmo 
 Para escala pequena/média, um único servidor (VPS) com Docker/Podman Compose é suficiente. Diferenças em relação ao `docker-compose.yml` de desenvolvimento:
 
 ```yaml
-# docker-compose.prod.yml (crie este arquivo separado — não substitua o de dev)
+# docker-compose.prod.yml (crie este arquivo separado, não substitua o de dev)
 services:
   db:
     image: postgres:17-alpine

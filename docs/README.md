@@ -10,12 +10,13 @@ Documentação estendida do projeto — cada guia é escrito para um público di
 | [`integration-guide.md`](./integration-guide.md) | Integrar outra aplicação (frontend ou backend) a este serviço: fluxos de login/MFA, onde guardar tokens, renovação automática, RBAC no cliente, erros comuns. |
 | [`usage-guide.md`](./usage-guide.md) | O que a API faz do ponto de vista funcional: tipos de usuário, ciclo de vida da conta, fluxos completos, RBAC na prática, tabela de endpoints. |
 | [`permissions-reference.md`](./permissions-reference.md) | Dicionário detalhado de cada permissão do RBAC: o que libera, nível de risco, combinações perigosas, exemplos de roles por função. |
+| [`roadmap.md`](./roadmap.md) | O que já tem infraestrutura pronta no código mas ainda não está conectado a um endpoint e o que falta pra cobrir tudo. |
 
 ## Convenções para novos documentos
 
 - Um guia por público/objetivo — evite misturar "como rodar localmente" com "como fazer deploy" no mesmo arquivo.
 - Prefira exemplos de comando reais (copiáveis) a descrições abstratas.
-- Se um documento ficar desatualizado em relação ao código, corrija-o no mesmo PR que muda o comportamento — documentação errada é pior que documentação ausente.
+- Se um documento ficar desatualizado em relação ao código, corrija-o no mesmo PR que muda o comportamento, documentação errada é pior que documentação ausente.
 
 ## Candidatos a próximos documentos
 

@@ -1,16 +1,12 @@
 """
-Configuração de logging estruturado (JSON) via `structlog`.
+Configuração do logging estruturado (JSON) via `structlog`.
 
-Logs estruturados são exigidos pela Seção 8 da especificação (auditoria de
-login, logout, alteração de senha, etc). Este módulo apenas configura o
-*pipeline* de logging; os eventos de auditoria específicos são emitidos
-pela camada de `services` / `middleware`, nunca aqui.
+Este módulo configura o pipeline de logs. Os eventos de auditoria
+são emitidos nos services/middlewares, e não aqui dentro.
 
-Regra crítica: nenhum processador deste pipeline deve nunca receber ou
-propagar senhas, tokens de acesso/refresh, ou segredos em texto puro. O
-processor `_scrub_sensitive_fields` existe exatamente para isso — é uma
-rede de segurança, não uma licença para logar dados sensíveis
-deliberadamente.
+Regra crítica: nunca logue senhas, tokens ou segredos em texto puro.
+O processador `_scrub_sensitive_fields` serve como rede de segurança,
+e não como licença para logar dados sensíveis de propósito.
 """
 
 from __future__ import annotations
@@ -47,7 +43,7 @@ def _scrub_sensitive_fields(
     _method_name: str,
     event_dict: MutableMapping[str, Any],
 ) -> MutableMapping[str, Any]:
-    """Processor do structlog que redige campos sensíveis antes de emitir o log."""
+    """Processor do structlog que mascara campos sensíveis antes de gerar o log."""
     for key in list(event_dict.keys()):
         if key.lower() in _SENSITIVE_KEYS:
             event_dict[key] = "***REDACTED***"
@@ -56,11 +52,12 @@ def _scrub_sensitive_fields(
 
 def configure_logging() -> None:
     """
-    Configura `structlog` + `logging` stdlib.
+    Configura o `structlog` integrado com o `logging` nativo.
 
-    Deve ser chamado uma única vez, no startup da aplicação
-    (`app/main.py`), antes de qualquer outro módulo emitir logs.
+    Deve ser chamado uma única vez no startup da aplicação (`main.py`),
+    antes que qualquer outro módulo gere logs.
     """
+
     logging.basicConfig(
         format="%(message)s",
         stream=sys.stdout,
@@ -93,5 +90,5 @@ def configure_logging() -> None:
 
 
 def get_logger(name: str) -> structlog.typing.FilteringBoundLogger:
-    """Retorna um logger estruturado nomeado (usar `__name__` do módulo chamador)."""
+    """Retorna um logger estruturado nomeado (passe `__name__` do módulo)."""
     return structlog.get_logger(name)  # type: ignore[no-any-return]

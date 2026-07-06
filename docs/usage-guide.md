@@ -91,13 +91,13 @@ Resumo de cada estado:
 O modelo é: **usuário → tem roles → cada role tem permissions → cada endpoint administrativo exige uma permission específica.**
 
 ```text
-Usuário "maria@loja.com"
+Usuário "luna@loja.com"
    └── Role "gerente-estoque"
           ├── Permission "user:list"
           └── Permission "user:read"
 ```
 
-Se Maria chama `GET /users` (que exige `user:list`), a API verifica: *alguma das roles de Maria tem a permission `user:list`?* Se sim, autorizado. Se não, `403 PERMISSION_DENIED`.
+Se Maria chama `GET /users` (que exige `user:list`), a API verifica: *alguma das roles de Luna tem a permission `user:list`?* Se sim, autorizado. Se não, `403 PERMISSION_DENIED`.
 
 **Duas exceções a essa regra:**
 1. **`is_superuser=True`** — ignora toda checagem de permissão, sempre autorizado. Use com moderação; é o "modo Deus" da conta.
@@ -138,12 +138,12 @@ POST /users/{seu_user_id}/roles
 
 **Opção B — modo Deus, direto no banco:**
 ```sql
-UPDATE users SET is_superuser = true WHERE email = 'voce@example.com';
+UPDATE users SET is_superuser = true WHERE email = 'alguem@example.com';
 ```
 
 ### 5.2. Gerenciando usuários
 
-- `GET /users?page=1&page_size=20&search=maria` — lista paginada, com busca por nome/e-mail.
+- `GET /users?page=1&page_size=20&search=luna` — lista paginada, com busca por nome/e-mail.
 - `GET /users/{id}` — detalhe de um usuário específico.
 - `PATCH /users/{id}` — editar nome/status de um usuário (não altera senha nem e-mail).
 - `POST /users/{id}/activate` / `POST /users/{id}/deactivate` — ver ciclo de vida (seção 2).
@@ -158,14 +158,14 @@ UPDATE users SET is_superuser = true WHERE email = 'voce@example.com';
 - `POST /users/{user_id}/roles` — atribui essa role a um usuário.
 - `POST /permissions` — cria uma permissão nova, se as pré-definidas não cobrirem seu caso (ex: `order:approve` para o gerenciador de entregas).
 
-Fluxo típico pra dar acesso limitado a um funcionário — exemplo: "Maria pode ver a lista de clientes, mas não pode excluir ninguém":
+Fluxo típico pra dar acesso limitado a um funcionário — exemplo: "Luna pode ver a lista de clientes, mas não pode excluir ninguém":
 ```text
 1. POST /roles                          {"name": "atendente"}
 2. POST /roles/{id}/permissions          {"permission_id": "<id de user:list>"}
 3. POST /roles/{id}/permissions          {"permission_id": "<id de user:read>"}
 4. POST /users/{maria_id}/roles          {"role_id": "<id da role atendente>"}
 ```
-A partir daí, Maria consegue `GET /users` e `GET /users/{id}`, mas `DELETE /users/{id}` continua dando `403` pra ela.
+A partir daí, Luna consegue `GET /users` e `GET /users/{id}`, mas `DELETE /users/{id}` continua dando `403` pra ela.
 
 ---
 

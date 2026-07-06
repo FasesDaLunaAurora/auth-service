@@ -1,6 +1,4 @@
-"""
-Rotas de usuários (`/api/v1/users`, Seção 6).
-"""
+"""Rotas para gerenciamento de usuários."""
 
 from __future__ import annotations
 
@@ -24,7 +22,7 @@ from app.schemas.user_schema import (
 router = APIRouter(prefix="/users", tags=["Users"])
 
 
-# --- Perfil próprio (qualquer usuário autenticado, sem permissão RBAC extra) ---
+# --- Perfil do usuário logado (livre de RBAC) ---
 
 
 @router.get("/me", response_model=UserRead, summary="Retorna o usuário autenticado")
@@ -51,7 +49,7 @@ async def change_my_password(
     await user_service.change_password(current_user, payload)
 
 
-# --- Administração de usuários (cada rota declara sua própria permissão RBAC) ---
+# --- Gestão de usuários (validação de RBAC por rota) ---
 
 
 @router.get(
@@ -135,12 +133,10 @@ async def deactivate_user(
     return UserRead.model_validate(user)
 
 
-# --- Atribuição de roles a um usuário (RBAC) ---
+# --- Vínculo de roles ao usuário (RBAC) ---
 #
-# Hospedadas aqui (em vez de `role_routes.py`) porque o path começa em
-# `/users/{id}/...` (Seção 6 não fixa este contrato — ver nota em
-# `audit_middleware.py`, Etapa 7) — mantém a convenção REST de que o
-# path reflete o recurso "pai" da URL.
+# Fica aqui (e não em roles) porque o path começa com `/users/{id}/`.
+# Segue a convenção REST onde a URL reflete o recurso pai.
 
 
 @router.post(

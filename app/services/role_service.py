@@ -1,6 +1,5 @@
 """
-Regras de negócio de `Role` e RBAC (`/api/v1/roles`, atribuição de roles
-a usuários).
+Regras de negócio de Roles e RBAC (controle de acesso baseado em perfis).
 """
 
 from __future__ import annotations
@@ -17,8 +16,6 @@ from app.schemas.role_schema import RoleCreate, RoleUpdate
 
 
 class RoleService:
-    """Orquestra as regras de negócio de `Role` e atribuição RBAC."""
-
     def __init__(
         self,
         role_repository: RoleRepository,
@@ -36,7 +33,6 @@ class RoleService:
         return role
 
     async def create_role(self, payload: RoleCreate) -> Role:
-        """Cria uma nova role (`POST /roles`, `role:create`)."""
         if await self._roles.exists_by_name(payload.name):
             raise ValidationConflictError(f"Já existe uma role com o nome '{payload.name}'.")
         role = Role(name=payload.name, description=payload.description)
@@ -44,7 +40,6 @@ class RoleService:
         return role
 
     async def update_role(self, role_id: uuid.UUID, payload: RoleUpdate) -> Role:
-        """Atualiza uma role existente (`PATCH /roles/{id}`, `role:update`)."""
         role = await self.get_by_id_or_raise(role_id)
         if payload.name is not None and payload.name != role.name:
             if await self._roles.exists_by_name(payload.name):
@@ -56,12 +51,10 @@ class RoleService:
         return role
 
     async def delete_role(self, role_id: uuid.UUID) -> None:
-        """Exclui uma role (`DELETE /roles/{id}`, `role:delete`)."""
         role = await self.get_by_id_or_raise(role_id)
         await self._roles.delete(role)
 
     async def list_roles(self, *, page: int, page_size: int) -> tuple[list[Role], int]:
-        """Lista roles paginadas (`GET /roles`, `role:list`)."""
         return await self._roles.list_all(page=page, page_size=page_size)
 
     async def assign_permission(self, role_id: uuid.UUID, permission_id: uuid.UUID) -> Role:
@@ -103,13 +96,12 @@ class RoleService:
     @staticmethod
     def user_has_permission(user: User, permission_code: str) -> bool:
         """
-        Verifica se um usuário possui uma permissão, direta ou
-        indiretamente (via qualquer uma de suas roles).
+        Verifica se o usuário tem uma permissão (direta ou por meio de seus perfis).
 
-        Superusuários (`is_superuser=True`) sempre passam nesta
-        verificação, independentemente de RBAC explícito — usado por
-        `app/api/dependencies/permission_dependency.py` na Etapa 8.
+        Superusuários (`is_superuser=True`) têm acesso livre e sempre passam por
+        essa checagem. Usado no sistema de dependências de permissão da API.
         """
+
         if user.is_superuser:
             return True
         return any(

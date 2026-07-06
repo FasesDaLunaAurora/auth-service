@@ -1,6 +1,5 @@
 """
-Testes de API para `/api/v1/users`, incluindo o caso de borda
-obrigatório (Seção 9): acesso a rota protegida sem permissão.
+Testes de API para `/api/v1/users`.
 """
 
 from __future__ import annotations
@@ -19,7 +18,6 @@ _PAYLOAD = {
 
 
 async def _create_authenticated_client(client: AsyncClient, db_session) -> str:
-    """Registra, verifica e loga um usuário comum (sem roles), retornando o access token."""
     await client.post("/api/v1/auth/register", json=_PAYLOAD)
 
     repo = UserRepository(db_session)
@@ -35,7 +33,6 @@ async def _create_authenticated_client(client: AsyncClient, db_session) -> str:
 
 
 async def _create_superuser(client: AsyncClient, db_session, *, email: str) -> tuple[str, str]:
-    """Registra, verifica, marca como superusuário e loga. Retorna `(access_token, user_id)`."""
     payload = {**_PAYLOAD, "email": email}
     await client.post("/api/v1/auth/register", json=payload)
 
@@ -66,7 +63,6 @@ async def test_get_me_returns_authenticated_user(client: AsyncClient, db_session
 
 @pytest.mark.asyncio
 async def test_list_users_without_permission_returns_403(client: AsyncClient, db_session) -> None:
-    """Caso de borda obrigatório (Seção 9): acesso a rota protegida sem permissão."""
     access_token = await _create_authenticated_client(client, db_session)
 
     response = await client.get(

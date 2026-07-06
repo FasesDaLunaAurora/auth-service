@@ -1,11 +1,8 @@
 """
-Entidade `RefreshToken`.
+Modelo de Refresh Token.
 
-O valor real do refresh token **nunca** é persistido — apenas seu hash
-(`token_hash`), gerado por `app/security/jwt_handler.py` (Etapa 5) via
-uma função de hash rápida e determinística (ex.: SHA-256), suficiente
-para comparação de posse do token sem expor o segredo em caso de leak do
-banco de dados.
+O valor real do token nunca é salvo no banco, apenas o seu hash SHA-256.
+Isso garante a validação da sessão e protege o segredo em caso de vazamento.
 """
 
 from __future__ import annotations
@@ -25,12 +22,10 @@ if TYPE_CHECKING:
 
 class RefreshToken(UUIDPrimaryKeyMixin, Base):
     """
-    Refresh token de longa duração, usado para rotação de Access Tokens.
+    Refresh token de longa duração para rotação de Access Tokens.
 
-    A coluna `created_at` é suficiente aqui (não há necessidade de
-    `updated_at`/`TimestampMixin` completo) pois um refresh token nunca é
-    "atualizado" — ele é revogado (flag `revoked`) e um novo é emitido em
-    seu lugar, conforme o fluxo de rotação da Seção 7.
+    Usa apenas a coluna `created_at`. O token nunca é atualizado:
+    ele é apenas revogado (flag `revoked`) e um novo é gerado no lugar.
     """
 
     __tablename__ = "refresh_tokens"

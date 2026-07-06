@@ -1,6 +1,4 @@
-"""
-Rotas de sessões (`/api/v1/sessions`, Seção 6).
-"""
+"""Rotas para gerenciamento de sessões."""
 
 from __future__ import annotations
 

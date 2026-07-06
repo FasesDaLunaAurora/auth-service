@@ -1,6 +1,7 @@
 """
-Dependências de autenticação: extraem e validam o access token do header
-`Authorization: Bearer <token>` e resolvem o `User` autenticado.
+Middlewares/Dependências de autenticação.
+
+Extrai e valida o Bearer token do header para retornar o usuário autenticado.
 """
 
 from __future__ import annotations
@@ -17,9 +18,7 @@ from app.models.user_model import User
 from app.schemas.token_schema import TokenPayload
 from app.security.jwt_handler import JWTHandler
 
-# `auto_error=True` faz o FastAPI já retornar 403 automaticamente se o
-# header `Authorization` estiver ausente, antes mesmo desta dependência
-# ser chamada — simplifica o tratamento de "requisição sem token".
+# auto_error=True já barra com 403 se faltar o token, sem precisar validar no código.
 _bearer_scheme = HTTPBearer(auto_error=True, description="Access token (JWT) do Auth Service.")
 
 
@@ -27,12 +26,12 @@ async def get_current_token_payload(
     credentials: Annotated[HTTPAuthorizationCredentials, Security(_bearer_scheme)],
 ) -> TokenPayload:
     """
-    Decodifica e valida o access token, sem ainda consultar o banco.
+    Decodifica e valida o token sem bater no banco de dados.
 
-    Separado de `get_current_user` para que rotas que só precisam de
-    dados do próprio token (ex: `sid` para logout) não paguem o custo de
-    uma consulta ao usuário desnecessariamente.
+    Separado de `get_current_user` para que rotas que só precisam das claims
+    do token (ex: logout) evitem uma consulta desnecessária.
     """
+
     return JWTHandler.decode(credentials.credentials, expected_type=TokenType.ACCESS)
 
 
@@ -41,14 +40,13 @@ async def get_current_user(
     user_repository: UserRepositoryDep,
 ) -> User:
     """
-    Resolve o `User` autenticado a partir do access token.
+    Busca o usuário no banco usando os dados do token.
 
-    Levanta `InvalidTokenError` se o usuário referenciado pelo token não
-    existir mais (ex: excluído após o token ter sido emitido) e
-    `AccountInactiveError` se a conta foi desativada nesse meio-tempo —
-    ambos os casos tratados como falha de autenticação, não 404/403
-    "de negócio".
+    Lança `InvalidTokenError` ou `AccountInactiveError` se o usuário sumiu ou
+    foi desativado após a emissão do token. Ambas são falhas de autenticação,
+    e não erros comuns de negócio (como 404 ou 403).
     """
+
     user = await user_repository.get_by_id(payload.sub)
     if user is None:
         raise InvalidTokenError("O usuário associado a este token não existe mais.")

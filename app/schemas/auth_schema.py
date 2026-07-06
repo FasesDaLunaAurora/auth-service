@@ -1,15 +1,9 @@
 """
-Contratos de entrada/saída para `/api/v1/auth` e `/api/v1/sessions`.
+Validadores (Schemas) para os fluxos de autenticação e sessões.
 
-Nota de decisão de arquitetura: a Seção 4 da especificação lista
-explicitamente apenas 5 arquivos em `app/schemas/` (`auth_schema.py`,
-`user_schema.py`, `role_schema.py`, `permission_schema.py`,
-`token_schema.py`) — não há `session_schema.py` na árvore de pastas,
-apesar do cronograma de etapas mencionar "esquemas para Session". Como a
-árvore de pastas (Seção 4) é a mais explícita e concreta das duas
-instruções, resolvo a ambiguidade colocando os schemas de `Session` aqui
-neste arquivo, já que sessões são criadas e revogadas como parte direta
-do ciclo de vida de autenticação.
+Centraliza os modelos de dados de entrada e saída das rotas de auth
+e gerenciamento de dispositivos, mantendo a estrutura de arquivos
+organizada e facilitando o reaproveitamento de campos de tokens.
 """
 
 from __future__ import annotations
@@ -26,11 +20,10 @@ from app.schemas.user_schema import UserCreate, validate_password_strength
 
 class RegisterRequest(UserCreate):
     """
-    Payload de `POST /auth/register`.
+    Dados de entrada para o cadastro de novos usuários.
 
-    Reutiliza `UserCreate` (email, full_name, password) e adiciona a
-    confirmação de senha, que é uma preocupação exclusiva do formulário
-    de registro (não da entidade `User` em si).
+    Inclui os campos de criação e adiciona a confirmação de senha,
+    que serve exclusivamente para a validação inicial do formulário.
     """
 
     password_confirm: str = Field(..., min_length=1, max_length=128)
@@ -44,12 +37,9 @@ class RegisterRequest(UserCreate):
 
 class RegisterResponse(BaseModel):
     """
-    Resposta de `POST /auth/register`.
-
-    Deliberadamente não retorna tokens de acesso — o fluxo exige
-    confirmação de e-mail (`is_verified=False` até `POST
-    /auth/email/confirm`) antes de permitir login, conforme os campos
-    `is_verified`/`email/confirm` definidos nas Seções 5 e 6.
+    Resposta de cadastro de novos usuários.
+    Não inclui tokens de acesso, pois o fluxo exige a confirmação do e-mail
+    antes de permitir o primeiro login no sistema.
     """
 
     model_config = ConfigDict(from_attributes=True)
@@ -83,12 +73,10 @@ class RefreshRequest(BaseModel):
 
 class LogoutRequest(BaseModel):
     """
-    Payload de `POST /auth/logout`.
+    Dados de entrada para o logout do sistema.
 
-    O `refresh_token` é opcional: se omitido, o serviço revoga a sessão
-    associada ao access token atual (extraído do header
-    `Authorization`); se informado, garante a revogação do par
-    access/refresh específico usado naquele dispositivo.
+    O `refresh_token` é opcional. Se for enviado, o sistema invalida esse
+    token específico; caso contrário, encerra a sessão ativa do usuário.
     """
 
     refresh_token: str | None = None
@@ -141,22 +129,21 @@ class EnableMFAResponse(BaseModel):
 
 class VerifyMFARequest(BaseModel):
     """
-    Payload de `POST /auth/mfa/verify`.
+    Dados de entrada para a verificação de MFA.
 
-    O `challenge_token` é o token de curta duração retornado por
-    `MFAChallengeResponse` (ver `token_schema.py`) após um `POST
-    /auth/login` bem-sucedido em uma conta com MFA habilitado.
+    O `challenge_token` é o token temporário gerado no login
+    quando a conta tiver a autenticação em duas etapas ativada.
     """
 
     challenge_token: str = Field(..., min_length=1)
     code: str = Field(..., min_length=6, max_length=6, pattern=r"^\d{6}$")
 
 
-# --- Sessões (ver nota de decisão no topo do arquivo) ---
+# --- Sessões  ---
 
 
 class SessionRead(BaseModel):
-    """Representação pública de uma sessão ativa, retornada por `GET /sessions`."""
+    """Dados de retorno de uma sessão ativa exposta para o cliente."""
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -172,6 +159,6 @@ class SessionRead(BaseModel):
 
 
 class SessionListResponse(BaseModel):
-    """Envelope de resposta para `GET /sessions`."""
+    """Lista de sessões ativas retornada para o cliente."""
 
     items: list[SessionRead]

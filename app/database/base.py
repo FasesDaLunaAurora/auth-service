@@ -1,9 +1,8 @@
 """
-Base declarativa do SQLAlchemy 2.x e mixins reutilizáveis por `models`.
+Base declarativa do SQLAlchemy e mixins reutilizáveis para os models.
 
-Nenhuma lógica de negócio deve viver aqui — apenas a infraestrutura de
-mapeamento ORM (estilo `Mapped` / `mapped_column`) compartilhada entre
-todas as entidades do domínio.
+Responsável apenas pelo mapeamento ORM (estilo Mapped/mapped_column).
+Nenhuma regra de negócio deve ficar aqui dentro.
 """
 
 from __future__ import annotations
@@ -16,35 +15,32 @@ from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
 
 def utcnow() -> datetime:
-    """Retorna o horário atual em UTC, timezone-aware.
-
-    Usado como `default`/`onupdate` em vez de `datetime.utcnow()` (que é
-    naive e está deprecado), garantindo que todos os timestamps
-    persistidos sejam consistentes e comparáveis entre si. Exportado
-    (sem underscore) para que `models` que não usam `TimestampMixin`
-    completo — como `RefreshToken` e `Session`, que só precisam de
-    `created_at` — possam reutilizar o mesmo default.
     """
+    Retorna o horário atual em UTC com timezone (aware).
+
+    Substitui o `datetime.utcnow()` (que foi depreciado e era naive).
+    Fica exportado publicamente para que qualquer modelo que precise
+    de datas (como `RefreshToken` ou `Session`) use o mesmo padrão.
+    """
+
     return datetime.now(UTC)
 
 
-# Alias privado mantido por compatibilidade interna deste módulo.
+# Mantido apenas para compatibilidade interna do módulo.
 _utcnow = utcnow
 
 
 class Base(DeclarativeBase):
     """
-    Declarative base compartilhada por todos os `models` do serviço.
-
-    Todas as entidades SQLAlchemy (Seção 5 da especificação) devem herdar
-    desta classe, direta ou indiretamente via os mixins abaixo.
+    Classe base (Declarative Base) herdada por todos os modelos.
+    Todas as entidades do banco de dados devem estender esta classe.
     """
 
     pass
 
 
 class UUIDPrimaryKeyMixin:
-    """Adiciona uma PK do tipo UUID, gerada no lado da aplicação."""
+    """Cria uma chave primária (PK) do tipo UUID gerada pelo app."""
 
     id: Mapped[uuid.UUID] = mapped_column(
         primary_key=True,
@@ -54,7 +50,7 @@ class UUIDPrimaryKeyMixin:
 
 
 class TimestampMixin:
-    """Adiciona `created_at` / `updated_at` com gerenciamento automático."""
+    """Cria os campos `created_at` e `updated_at` com atualização automática."""
 
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
@@ -70,7 +66,7 @@ class TimestampMixin:
 
 
 class SoftDeleteMixin:
-    """Adiciona exclusão lógica via `deleted_at` (nunca fazer DELETE físico de User)."""
+    """Cria exclusão lógica via `deleted_at` para evitar o DELETE físico."""
 
     deleted_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True),

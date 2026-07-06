@@ -1,5 +1,5 @@
 """
-Testes de API para `/api/v1/sessions` (Seção 6).
+Testes de API para `/api/v1/sessions`.
 """
 
 from __future__ import annotations
@@ -62,9 +62,10 @@ async def test_revoke_own_session_succeeds(client: AsyncClient, db_session) -> N
 @pytest.mark.asyncio
 async def test_cannot_revoke_another_users_session(client: AsyncClient, db_session) -> None:
     """
-    Checagem de posse do recurso (`SessionService.revoke_session`): um
-    usuário não pode revogar a sessão de outro, mesmo sabendo o ID.
+    Garante que um usuário não consiga encerrar a sessão de outra pessoa,
+    mesmo informando o ID.
     """
+
     victim_tokens = await _register_verify_and_login(client, db_session, email="victim@example.com")
     attacker_tokens = await _register_verify_and_login(
         client, db_session, email="attacker@example.com"

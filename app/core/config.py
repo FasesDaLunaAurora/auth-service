@@ -20,12 +20,10 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 class Settings(BaseSettings):
     """
-    Configurações centrais do Auth Service.
+    Configurações globais do Auth Service.
 
-    Instanciar esta classe sem as variáveis obrigatórias definidas no
-    ambiente (ou em um arquivo `.env`) levanta `pydantic.ValidationError`
-    imediatamente — este é o mecanismo de Fail Fast exigido pela
-    especificação de segurança do projeto.
+    A falta de variáveis obrigatórias no ambiente ou no `.env` estoura um
+    `ValidationError` imediatamente, aplicando o padrão Fail Fast na inicialização.
     """
 
     model_config = SettingsConfigDict(
@@ -41,9 +39,9 @@ class Settings(BaseSettings):
     APP_DEBUG: bool = False
     APP_HOST: str = "0.0.0.0"
     APP_PORT: int = 8000
-    API_V1_PREFIX: str = "/api/v1"
+    API_VERSION_PREFIX: str = "/api/v1"
 
-    # --- Banco de dados ---
+    # --- DB ---
     DATABASE_URL: PostgresDsn = Field(
         ...,
         description="URL assíncrona do PostgreSQL, ex: postgresql+asyncpg://user:pass@host:5432/db",
@@ -71,11 +69,11 @@ class Settings(BaseSettings):
     PASSWORD_HASH_SCHEME: Literal["bcrypt", "argon2"] = "bcrypt"
     BCRYPT_ROUNDS: int = 12
 
-    # --- Política de conta / brute force ---
+    # --- Segurança contra brute force ---
     MAX_FAILED_LOGIN_ATTEMPTS: int = 5
     ACCOUNT_LOCKOUT_MINUTES: int = 15
 
-    # --- Rate limiting global (por IP) ---
+    # --- Rate limiting por IP ---
     RATE_LIMIT_AUTH_REQUESTS: int = 10
     RATE_LIMIT_AUTH_WINDOW_SECONDS: int = 60
 
@@ -83,7 +81,7 @@ class Settings(BaseSettings):
     MFA_ISSUER_NAME: str = "AuthService"
     MFA_CODE_VALID_SECONDS: int = 30
 
-    # --- E-mail / SMTP (integrations/email_client.py) ---
+    # --- Configurações de E-mail / SMTP ---
     SMTP_HOST: str | None = None
     SMTP_PORT: int = 587
     SMTP_USER: str | None = None
@@ -101,7 +99,7 @@ class Settings(BaseSettings):
     @field_validator("JWT_SECRET_KEY")
     @classmethod
     def _validate_secret_strength(cls, value: SecretStr) -> SecretStr:
-        """Garante que o secret de JWT não seja um placeholder trivial."""
+        """Valida se a secret do JWT é segura e não um valor padrão."""
         weak_values = {"changeme", "secret", "123456", ""}
         if value.get_secret_value().lower() in weak_values:
             raise ValueError(
@@ -118,11 +116,9 @@ class Settings(BaseSettings):
 @lru_cache(maxsize=1)
 def get_settings() -> Settings:
     """
-    Retorna a instância de `Settings`, cacheada em memória.
-
-    Usar `lru_cache` transforma esta função em um singleton simples e
-    compatível com o sistema de Dependency Injection do FastAPI
-    (`Depends(get_settings)`), sem custo de re-parsing a cada chamada.
+    Retorna as configurações em cache (Singleton).
+    O uso do `lru_cache` garante que o parse do arquivo só aconteça
+    uma vez, evitando o custo de recriar as configurações a cada rota.
     """
     return Settings()
 

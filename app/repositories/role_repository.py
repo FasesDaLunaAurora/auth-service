@@ -1,9 +1,7 @@
 """
-Repositório de `Role`.
-
-Assim como `UserRepository`, contém apenas operações de persistência —
-a decisão de, por exemplo, impedir a exclusão de uma role em uso por
-usuários ativos é do `role_service.py` (Etapa 6), não deste módulo.
+Repositório de Roles (Papéis).
+Gerencia exclusivamente a persistência e as consultas da tabela de papéis.
+Validações de negócio, como impedir a exclusão de regras em uso, ficam nos services.
 """
 
 from __future__ import annotations
@@ -18,7 +16,7 @@ from app.models.role_model import Role
 
 
 class RoleRepository:
-    """Acesso a dados da entidade `Role`, isolado de regras de negócio."""
+    """Acesso a dados de papéis (roles), isolado das regras de negócio."""
 
     def __init__(self, db: AsyncSession) -> None:
         self._db = db
@@ -41,11 +39,9 @@ class RoleRepository:
     async def create(self, role: Role) -> Role:
         self._db.add(role)
         await self._db.flush()
-        # Garante que `.permissions` esteja carregado (vazio, para uma
-        # role recém-criada) antes de devolver o objeto — sem isso,
-        # serializar a resposta com `RoleRead.model_validate(role)`
-        # (que inclui `permissions`) na camada de API pode disparar o
-        # mesmo `MissingGreenlet` já visto em `assign_permission`.
+        # Garante o carregamento do relacionamento de permissões para evitar
+        # erros de carregamento assíncrono (MissingGreenlet) na serialização da API.
+
         await self._db.refresh(role, attribute_names=["permissions"])
         return role
 
@@ -55,15 +51,11 @@ class RoleRepository:
 
     async def delete(self, role: Role) -> None:
         """
-        Exclusão física.
-
-        Diferente de `User`, a especificação (Seção 5) não define
-        exclusão lógica para `Role` — optei por `DELETE` físico real,
-        já que roles não carregam histórico de auditoria individual (o
-        histórico de quem teve qual permissão fica nos logs de
-        auditoria, não na tabela `roles`). Decisão registrada no
-        changelog.
+        Remove a role fisicamente do banco de dados.
+        Seguindo a modelagem do sistema, papéis não utilizam exclusão lógica,
+        já que o histórico de alterações fica registrado diretamente nos logs.
         """
+
         await self._db.delete(role)
         await self._db.flush()
 
@@ -77,23 +69,17 @@ class RoleRepository:
         result = await self._db.execute(stmt)
         return list(result.scalars().all()), total
 
-    # Nota: `role.permissions` é acessada por `assign_permission` e
-    # `remove_permission` logo abaixo. Sem um `refresh()` explícito
-    # antes desse acesso, uma `Role` cuja coleção não tenha sido
-    # populada pela consulta que a originou (ex: uma role recém-criada
-    # e apenas `flush()`ada, ou dependendo da versão do SQLAlchemy)
-    # pode disparar uma tentativa de lazy-load síncrona ao acessar
-    # `.permissions` — o que falha com `MissingGreenlet` sobre um
-    # engine assíncrono, mesmo com `lazy="selectin"` configurado no
-    # model (Etapa 2). `session.refresh()` é assíncrono e seguro aqui.
+    # Atualiza os dados para carregar o relacionamento com segurança,
+    # evitando quebras ao tentar acessar a lista de permissões.
+
     async def assign_permission(self, role: Role, permission: Permission) -> bool:
         """
-        Adiciona uma permissão à coleção de permissões da role, se ainda
-        não presente. Retorna `True` se a atribuição foi de fato nova,
-        `False` se a permissão já estava atribuída — assim, chamadores
-        (services, scripts) nunca precisam acessar `role.permissions`
-        diretamente para saber se algo mudou.
+        Vincula uma permissão ao papel (role), caso ainda não exista.
+
+        Retorna `True` se for uma nova atribuição ou `False` se a permissão
+        já estava associada, poupando validações manuais antes de salvar.
         """
+
         await self._db.refresh(role, attribute_names=["permissions"])
         if permission not in role.permissions:
             role.permissions.append(permission)
@@ -102,7 +88,7 @@ class RoleRepository:
         return False
 
     async def remove_permission(self, role: Role, permission: Permission) -> bool:
-        """Remove uma permissão da role, se presente. Ver `assign_permission`."""
+        """Remove uma permissão da role, caso esteja associada, igual a `assign_permission`."""
         await self._db.refresh(role, attribute_names=["permissions"])
         if permission in role.permissions:
             role.permissions.remove(permission)

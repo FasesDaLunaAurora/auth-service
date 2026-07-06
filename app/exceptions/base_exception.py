@@ -1,13 +1,10 @@
 """
-Exceção de domínio base e exceções genéricas reutilizadas por múltiplos
-domínios (`user`, `role`, `permission`, `session`).
+Exceção base e erros genéricos compartilhados entre os módulos.
 
-Regra de camada (Seção 3): `services` levantam apenas estas exceções (ou
-suas subclasses definidas em `auth_exceptions.py`/`user_exceptions.py`),
-nunca `HTTPException`. A tradução para HTTP acontece exclusivamente em
-`exception_handlers.py`, que lê o atributo `status_code` de cada exceção
-— um dado simples, não uma dependência de `fastapi`/`Request`/`Response`
-— para montar a resposta.
+Regra de arquitetura: os services lançam apenas estas exceções (ou suas
+subclasses), nunca `HTTPException`. A conversão para HTTP ocorre apenas no
+`exception_handlers.py`, que usa o `status_code` mapeado na própria classe
+para não criar dependências do FastAPI na camada de negócio.
 """
 
 from __future__ import annotations
@@ -19,11 +16,11 @@ from app.core.constants import ErrorCode
 
 class DomainException(Exception):
     """
-    Base de toda exceção de domínio da aplicação.
+    Classe base para as exceções de negócio da aplicação.
 
-    Subclasses devem sobrescrever `error_code`, `default_message` e
-    `status_code`. `details` é opcional e usado para contexto adicional
-    não sensível (nunca deve conter senhas, tokens ou hashes).
+    As subclasses devem definir `error_code`, `default_message` e `status_code`.
+    O campo `details` é opcional e serve para dar contexto extra (não logue
+    dados sensíveis como senhas ou tokens aqui).
     """
 
     error_code: ErrorCode = ErrorCode.INTERNAL_ERROR
@@ -38,10 +35,9 @@ class DomainException(Exception):
 
 class ResourceNotFoundError(DomainException):
     """
-    Recurso genérico não encontrado (usuário, role, permissão, sessão).
-
-    Aceita um `resource_name` para compor uma mensagem específica sem
-    precisar de uma subclasse dedicada para cada entidade do sistema.
+    Erro de recurso não encontrado.
+    Aceita o `resource_name` para gerar a mensagem específica,
+    evitando a criação de uma subclasse para cada tabela/entidade.
     """
 
     error_code = ErrorCode.RESOURCE_NOT_FOUND
@@ -54,12 +50,10 @@ class ResourceNotFoundError(DomainException):
 
 class PermissionDeniedError(DomainException):
     """
-    Levantada quando um usuário autenticado não possui a permissão
-    exigida pela operação (RBAC).
+    Erro de permissão insuficiente (RBAC).
 
-    Distinta de `InvalidCredentialsError`/`token`: aqui a identidade do
-    usuário já foi validada com sucesso — o problema é de autorização,
-    não de autenticação.
+    Aqui a identidade do usuário já foi validada com sucesso, mas ele
+    não tem autorização para executar a operação (erro 403, não 401).
     """
 
     error_code = ErrorCode.PERMISSION_DENIED
@@ -69,10 +63,10 @@ class PermissionDeniedError(DomainException):
 
 class ValidationConflictError(DomainException):
     """
-    Conflito de validação de negócio que não é um simples erro de
-    formato de schema (ex: tentar excluir uma role em uso, atribuir uma
-    permissão duplicada). Schemas Pydantic já cobrem erros de formato;
-    esta exceção cobre invariantes de negócio verificadas pelo Service.
+    Erro de conflito ou regra de negócio violada.
+
+    Usada para cenários que o Pydantic não cobre sozinhos (ex: excluir role em uso
+    ou duplicar permissão). Valida as regras que dependem de consulta ao banco.
     """
 
     error_code = ErrorCode.VALIDATION_ERROR
@@ -81,7 +75,7 @@ class ValidationConflictError(DomainException):
 
 
 class RateLimitExceededError(DomainException):
-    """Levantada pela camada de serviço/middleware quando um limite de taxa é excedido."""
+    """Lançada quando o limite de requisições (rate limit) é excedido."""
 
     error_code = ErrorCode.RATE_LIMITED
     default_message = "Muitas requisições. Tente novamente mais tarde."

@@ -1,15 +1,13 @@
 """
-Tradução de exceções de domínio (e outras exceções conhecidas) para o
-formato de erro HTTP padronizado da Seção 6:
+Mapeamento de exceções de negócio para o formato HTTP padrão da API:
 
 ```json
 {"error": {"code": "...", "message": "...", "details": null}}
 ```
 
-Este é o **único** lugar do projeto autorizado a construir
-`JSONResponse`/conhecer `Request` a partir de uma exceção de domínio —
-`services` e `repositories` nunca importam nada daqui. `register_exception_handlers`
-é chamado uma única vez, em `app/main.py` (Etapa 8).
+Centraliza o tratamento de erros do app. As camadas de service e repository
+apenas lançam as exceções, e este módulo converte em `JSONResponse`.
+Deve ser registrado uma única vez no startup da aplicação (`main.py`).
 """
 
 from __future__ import annotations
@@ -39,12 +37,12 @@ def _correlation_id(request: Request) -> str | None:
 
 async def _handle_domain_exception(request: Request, exc: DomainException) -> JSONResponse:
     """
-    Traduz qualquer `DomainException` (ou subclasse) para HTTP.
+    Converte qualquer `DomainException` para a resposta HTTP padrão.
 
-    O `status_code` e `error_code` já vêm definidos na própria classe da
-    exceção (ver `base_exception.py`) — este handler só monta a resposta,
-    sem precisar de um `if/elif` por tipo de exceção.
+    Usa o `status_code` e `error_code` definidos na própria classe,
+    evitando blocos de `if/elif` para cada tipo de exceção.
     """
+
     logger.info(
         "domain_exception_handled",
         exception_type=type(exc).__name__,
@@ -61,18 +59,12 @@ async def _handle_domain_exception(request: Request, exc: DomainException) -> JS
 
 async def _handle_validation_error(request: Request, exc: RequestValidationError) -> JSONResponse:
     """
-    Traduz erros de validação do Pydantic/FastAPI (422) para o mesmo
-    formato padronizado de erro, em vez do formato default do FastAPI.
-
-    Nota de decisão: `exc.errors()` pode conter objetos não
-    serializáveis em JSON puro dentro de `ctx` — por exemplo, quando um
-    `@field_validator` customizado (ex: `PermissionCreate`) levanta um
-    `ValueError`, o Pydantic inclui a exceção *crua* em
-    `ctx["error"]`, e `json.dumps` não sabe serializar isso
-    (`TypeError: Object of type ValueError is not JSON serializable`).
-    `jsonable_encoder` (o mesmo usado internamente pelo FastAPI) resolve
-    isso, convertendo para uma representação segura.
+    Converte erros de validação do Pydantic (422) para o formato padrão da API.
+    Nota técnica: `exc.errors()` pode conter objetos não serializáveis em `ctx`
+    (como exceções cruas de ValueError lançadas por @field_validator). O uso do
+    `jsonable_encoder` resolve isso, limpando a estrutura antes de gerar a resposta.
     """
+
     safe_errors = jsonable_encoder(exc.errors())
     logger.info(
         "request_validation_error",
@@ -92,10 +84,11 @@ async def _handle_validation_error(request: Request, exc: RequestValidationError
 
 async def _handle_http_exception(request: Request, exc: StarletteHTTPException) -> JSONResponse:
     """
-    Traduz `HTTPException`s "cruas" (ex: 404 de rota inexistente, 405
-    método não permitido) que não passam pela camada de domínio — ainda
-    assim, devem sair no mesmo formato padronizado de erro.
+    Converte exceções HTTP nativas para o formato padrão da API.
+    Cobre cenários como rotas inexistentes (404) ou métodos não permitidos (405)
+    que não chegam a passar pelas regras de negócio.
     """
+
     logger.info(
         "http_exception_handled",
         status_code=exc.status_code,
@@ -110,11 +103,11 @@ async def _handle_http_exception(request: Request, exc: StarletteHTTPException) 
 
 async def _handle_unexpected_exception(request: Request, exc: Exception) -> JSONResponse:
     """
-    Rede de segurança final (Fail Secure): qualquer exceção não prevista
-    vira um 500 genérico, sem vazar detalhes internos (stack trace,
-    mensagens de driver de banco, etc.) para o cliente. O detalhe
-    completo vai apenas para o log estruturado do servidor.
+    Fallback para erros inesperados (500).
+    Retorna um erro genérico para o cliente sem vazar dados sensíveis
+    (como stack trace ou erros de banco), salvando o erro completo apenas nos logs.
     """
+
     logger.error(
         "unhandled_exception",
         exception_type=type(exc).__name__,
@@ -132,7 +125,7 @@ async def _handle_unexpected_exception(request: Request, exc: Exception) -> JSON
 
 
 def register_exception_handlers(app: FastAPI) -> None:
-    """Registra todos os handlers de exceção na instância do FastAPI (chamado em `main.py`)."""
+    """Registra os handlers de exceção na aplicação FastAPI."""
     app.add_exception_handler(DomainException, _handle_domain_exception)  # type: ignore[arg-type]
     app.add_exception_handler(RequestValidationError, _handle_validation_error)  # type: ignore[arg-type]
     app.add_exception_handler(StarletteHTTPException, _handle_http_exception)  # type: ignore[arg-type]

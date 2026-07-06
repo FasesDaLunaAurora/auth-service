@@ -1,17 +1,14 @@
 """
-Script de seed: cria todas as permissões estruturais definidas em
-`app.core.constants.PermissionCode` e uma role `admin` com todas elas
-atribuídas.
+Script de seed: cria as permissões padrão do sistema e o perfil `admin` com acesso total.
 
-Idempotente: pode ser executado quantas vezes forem necessárias — em
-cada execução, apenas permissões/roles ainda inexistentes são criadas.
+É idempotente, ou seja, pode ser rodado várias vezes sem duplicar dados. Ele só vai
+criar o que ainda não existir no banco.
 
 Uso:
     python scripts/seed_permissions.py
 
-Este script usa a mesma configuração (`app.core.config.settings`) da
-aplicação — nunca hardcodeie credenciais aqui. Ver `scripts/README.md`
-para convenções de novos scripts.
+O script usa as configurações oficiais do sistema, sem nenhuma senha ou credencial
+fixa no código (hardcoded).
 """
 
 from __future__ import annotations
@@ -20,21 +17,15 @@ import asyncio
 import sys
 from pathlib import Path
 
-# Permite `python scripts/seed_permissions.py` a partir da raiz do
-# projeto sem precisar instalar o pacote antes.
+# Permite rodar o script direto da raiz sem precisar instalar o projeto como pacote.
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from app.core.constants import PermissionCode  # noqa: E402
 from app.database.session import session_scope  # noqa: E402
 
-# Importa TODOS os módulos de `app.models`, mesmo os não usados
-# diretamente neste script. `Role` e `Permission` têm relacionamentos
-# declarados por string (ex: `Mapped[list["User"]]`) — o SQLAlchemy só
-# consegue resolver esses nomes se a classe referenciada já tiver sido
-# importada em algum lugar do processo antes da primeira query. Sem
-# isso, a configuração do mapper falha com
-# `InvalidRequestError: ... failed to locate a name ('User')`. Mesmo
-# import completo já usado em `alembic/env.py` e `tests/conftest.py`.
+# Importa todos os modelos para que o SQLAlchemy consiga resolver os relacionamentos.
+# Como o mapeamento usa strings (ex: 'User'), o framework precisa que as classes
+# referenciadas estejam carregadas na memória para evitar erros de mapeamento inválido.
 from app.models import (  # noqa: E402, F401
     permission_model,
     refresh_token_model,
@@ -52,7 +43,8 @@ _ADMIN_ROLE_DESCRIPTION = "Acesso administrativo completo (criada pelo seed auto
 
 
 def _all_permission_codes() -> list[str]:
-    """Introspecta `PermissionCode` e retorna todos os códigos definidos como constantes."""
+    """Varre o `PermissionCode` e retorna todos os códigos definidos nele."""
+
     return sorted(
         value
         for name, value in vars(PermissionCode).items()

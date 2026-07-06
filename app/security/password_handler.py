@@ -1,10 +1,9 @@
 """
-Handler de domínio para hashing/verificação de senha.
+Gerencia o hash e a verificação de senhas.
 
-Camada fina sobre `app/core/security.py`, existindo para que
-`app/services/*.py` importem de `app.security.password_handler`
-(nomenclatura de domínio de segurança citada na Seção 3), sem conhecer
-os detalhes de `passlib`/`CryptContext` diretamente.
+Funciona como uma camada simples sobre o `app/core/security.py`. Os services
+usam este módulo diretamente, sem precisar conhecer detalhes do `passlib` ou
+do `CryptContext`.
 """
 
 from __future__ import annotations
@@ -13,7 +12,7 @@ from app.core.security import hash_password, needs_rehash, verify_password
 
 
 class PasswordHandler:
-    """Fachada de hashing de senha usada pela camada de `services`."""
+    """Interface de hash de senha usada pelos services."""
 
     @staticmethod
     def hash(plain_password: str) -> str:
@@ -30,13 +29,13 @@ class PasswordHandler:
         plain_password: str, hashed_password: str
     ) -> tuple[bool, str | None]:
         """
-        Verifica a senha e, se válida e o hash estiver desatualizado
-        (ex: scheme antigo, rounds diferentes), retorna um novo hash.
+        Valida a senha e gera um novo hash caso o atual esteja desatualizado.
 
-        Retorna `(is_valid, new_hash_or_none)`. A persistência do novo
-        hash (se houver) é responsabilidade de `auth_service`/
-        `user_service` — este handler nunca acessa o repositório.
+        Retorna uma tupla `(is_valid, new_hash_or_none)`. Salvar o novo hash no
+        banco é tarefa do `auth_service` ou `user_service`, pois este módulo não
+        acessa o banco.
         """
+
         is_valid = verify_password(plain_password, hashed_password)
         if not is_valid:
             return False, None

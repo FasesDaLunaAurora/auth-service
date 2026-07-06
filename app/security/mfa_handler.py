@@ -1,13 +1,9 @@
 """
-Handler de domínio para MFA via TOTP (RFC 6238).
+Gerenciador de MFA via TOTP (RFC 6238).
 
-Nota de decisão: a Seção 2 (Stack Tecnológica) não lista nenhuma
-biblioteca de TOTP (ex: `pyotp`), e a regra "não substitua nenhuma
-tecnologia desta lista" trata de substituições, não de adições — ainda
-assim, optei por implementar TOTP usando apenas a *standard library*
-(`hmac`, `hashlib`, `base64`, `struct`, `secrets`), evitando introduzir
-qualquer dependência nova não prevista na especificação. RFC 6238 é um
-algoritmo simples o suficiente para isso ser seguro e direto.
+Implementado do zero usando apenas a biblioteca padrão do Python (hmac,
+hashlib, base64, etc.) para evitar dependências extras (como pyotp). O
+algoritmo da RFC 6238 é simples e seguro o suficiente para essa abordagem direta.
 """
 
 from __future__ import annotations
@@ -22,25 +18,27 @@ from urllib.parse import quote
 
 from app.core.config import settings
 
-_SECRET_BYTES_LENGTH = 20  # 160 bits — recomendação padrão para chaves TOTP
+_SECRET_BYTES_LENGTH = 20  # 160 bits — tamanho padrão recomendado para chaves TOTP
+
 _CODE_DIGITS = 6
 
 
 class MFAHandler:
-    """Fachada de geração/verificação de código TOTP usada pela camada de `services`."""
+    """Interface para geração e validação de códigos TOTP usada pelos services."""
 
     @staticmethod
     def generate_secret() -> str:
-        """Gera um novo secret TOTP em Base32 (formato exigido pelos apps autenticadores)."""
+        """Gera uma nova chave TOTP em Base32 (padrão dos apps autenticadores)."""
+
         random_bytes = secrets.token_bytes(_SECRET_BYTES_LENGTH)
         return base64.b32encode(random_bytes).decode("utf-8").rstrip("=")
 
     @staticmethod
     def build_qr_code_uri(secret: str, *, account_email: str) -> str:
         """
-        Monta a URI `otpauth://totp/...` para leitura por um app
-        autenticador (Google Authenticator, Authy, etc).
+        Cria a URL `otpauth://totp/...` para ler no Google Authenticator ou Authy.
         """
+
         label = quote(f"{settings.MFA_ISSUER_NAME}:{account_email}")
         issuer = quote(settings.MFA_ISSUER_NAME)
         return (
@@ -50,9 +48,13 @@ class MFAHandler:
 
     @staticmethod
     def _generate_code_for_counter(secret: str, counter: int) -> str:
-        """Implementa HOTP (RFC 4226), base do TOTP, para um contador de tempo específico."""
-        # Base32 exige padding múltiplo de 8 — reconstituído aqui pois o
-        # secret é armazenado/exibido sem padding por conveniência visual.
+        """
+        Implementa o HOTP (RFC 4226) com base no contador de tempo atual.
+
+        Ajusta o padding em Base32 (múltiplo de 8), já que o segredo é
+        guardado sem padding para o texto ficar mais limpo visualmente.
+        """
+
         padded_secret = secret + "=" * ((8 - len(secret) % 8) % 8)
         key = base64.b32decode(padded_secret.upper())
         counter_bytes = struct.pack(">Q", counter)
@@ -65,7 +67,8 @@ class MFAHandler:
 
     @classmethod
     def generate_current_code(cls, secret: str, *, for_time: float | None = None) -> str:
-        """Gera o código TOTP válido para o instante atual (usado apenas em testes)."""
+        """Gera o código TOTP para o horário atual (usado apenas em testes)."""
+
         timestamp = for_time if for_time is not None else time.time()
         counter = int(timestamp // settings.MFA_CODE_VALID_SECONDS)
         return cls._generate_code_for_counter(secret, counter)
@@ -73,13 +76,13 @@ class MFAHandler:
     @classmethod
     def verify_code(cls, secret: str, code: str, *, valid_window: int = 1) -> bool:
         """
-        Verifica um código TOTP informado pelo usuário.
+        Valida o código TOTP enviado pelo usuário.
 
-        `valid_window` tolera desvios de relógio entre cliente e
-        servidor (janelas para trás/frente), conforme prática comum de
-        implementações TOTP — sem isso, pequenas diferenças de horário
-        no dispositivo do usuário causariam falhas de MFA legítimas.
+        O parâmetro `valid_window` aceita pequenas variações no relógio do
+        dispositivo do usuário (para trás ou para frente). Isso evita falhas de
+        autenticação por pequenos atrasos de sincronização com o servidor.
         """
+
         if not code.isdigit() or len(code) != _CODE_DIGITS:
             return False
 

@@ -1,15 +1,11 @@
 """
-Rate limiting global por IP nas rotas de autenticação (Seção 7/10).
+Rate limiting por IP nas rotas de autenticação.
 
-Implementado como um "fixed window counter" no Redis: para cada IP, uma
-chave `ratelimit:auth:{ip}:{janela}` é incrementada a cada requisição às
-rotas de `/auth/*`; se o contador exceder `RATE_LIMIT_AUTH_REQUESTS`
-dentro de `RATE_LIMIT_AUTH_WINDOW_SECONDS`, a requisição é rejeitada.
+Bloqueia acessos excessivos usando o Redis para contar as requisições
+em janelas de tempo fixas. Se o limite de IP for ultrapassado, barra a chamada.
 
-Este middleware nunca contém regra de negócio de domínio (Seção 3) — ele
-apenas conta requisições e levanta `RateLimitExceededError`, uma exceção
-de domínio genérica já traduzida para HTTP 429 por
-`exception_handlers.py`.
+Este middleware gerencia apenas o fluxo de tráfego. Ele dispara a exceção
+`RateLimitExceededError` sem carregar regras de negócio aqui dentro.
 """
 
 from __future__ import annotations
@@ -27,24 +23,20 @@ from app.integrations.redis_client import get_redis_client
 
 logger = get_logger(__name__)
 
-# Prefixo de rota protegido por rate limiting — apenas autenticação, per
-# a Seção 7 ("Rate limiting global por IP... aplicado nas rotas de
-# autenticação"). Demais rotas não são limitadas por este middleware
-# (proteção geral de infraestrutura, se necessária, fica a cargo de um
-# API Gateway/WAF fora do escopo deste serviço).
-_PROTECTED_PATH_PREFIX = f"{settings.API_V1_PREFIX}/auth"
+# Filtra apenas rotas de autenticação. O controle de tráfego de outros
+# endpoints fica sob responsabilidade do API Gateway ou WAF.
+
+_PROTECTED_PATH_PREFIX = f"{settings.API_VERSION_PREFIX}/auth"
 
 
 def _client_ip(request: Request) -> str:
     """
-    Extrai o IP do cliente, respeitando `X-Forwarded-For` quando presente
-    (o serviço normalmente roda atrás de um proxy/load balancer).
+    Extrai o IP do cliente respeitando o cabeçalho `X-Forwarded-For`.
 
-    Usa apenas o primeiro IP da lista (o cliente original) — confiar em
-    `X-Forwarded-For` pressupõe que o proxy à frente do serviço já
-    sanitiza este header antes de repassá-lo, prática padrão de
-    infraestrutura fora do escopo deste código.
+    Usa o primeiro IP da lista para identificar o cliente original.
+    Assume que o proxy ou load balancer à frente já limpa este header.
     """
+
     forwarded_for = request.headers.get("X-Forwarded-For")
     if forwarded_for:
         return forwarded_for.split(",")[0].strip()
@@ -52,7 +44,7 @@ def _client_ip(request: Request) -> str:
 
 
 class RateLimitMiddleware(BaseHTTPMiddleware):
-    """Middleware de rate limiting por IP, restrito às rotas de autenticação."""
+    """Middleware de rate limiting por IP para rotas de autenticação."""
 
     async def dispatch(self, request: Request, call_next: RequestResponseEndpoint) -> Response:
         if not request.url.path.startswith(_PROTECTED_PATH_PREFIX):
@@ -65,8 +57,8 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         redis_client = get_redis_client()
         current_count = await redis_client.incr(redis_key)
         if current_count == 1:
-            # Só define o TTL na primeira requisição da janela, evitando
-            # resetar a expiração a cada incremento subsequente.
+            # Define a expiração apenas no primeiro acesso para não resetar a janela de tempo.
+
             await redis_client.expire(redis_key, settings.RATE_LIMIT_AUTH_WINDOW_SECONDS)
 
         if current_count > settings.RATE_LIMIT_AUTH_REQUESTS:

@@ -1,12 +1,9 @@
 """
 Fixtures compartilhadas por toda a suíte de testes.
 
-Segue a Seção 9: os testes de integração/API rodam contra um **banco de
-dados real** (o mesmo Postgres apontado por `DATABASE_URL`, tipicamente
-um container descartável — ver `.github/workflows/ci.yml`), não um mock
-de banco. Cada teste roda dentro de uma transação que é revertida ao
-final (`rollback`), garantindo isolamento sem precisar recriar o schema
-a cada teste.
+Configura o banco de dados real (Postgres) para os testes de integração e API.
+Cada teste roda dentro de uma transação isolada que sofre rollback ao final,
+garantindo que o banco continue limpo sem precisar recriar as tabelas do zero.
 """
 
 from __future__ import annotations
@@ -20,9 +17,6 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_asyn
 from app.core.config import settings
 from app.database.base import Base
 from app.main import create_app
-
-# Importa todos os models para que `Base.metadata` os conheça antes do
-# `create_all` — mesmo motivo do import em `alembic/env.py`.
 from app.models import (  # noqa: F401
     permission_model,
     refresh_token_model,
@@ -35,21 +29,16 @@ from app.models import (  # noqa: F401
 @pytest_asyncio.fixture
 async def _engine():
     """
-    Engine de teste, criada uma vez **por teste** (não por sessão).
+    Engine de teste criada a cada função (escopo de função).
 
-    Nota de decisão: esta fixture já foi `scope="session"` (criada uma
-    única vez para toda a suíte), mas isso quebra com `pytest-asyncio`
-    no modo padrão, que cria um *event loop novo a cada função de
-    teste* (`asyncio_default_test_loop_scope=function`). Uma engine
-    assíncrona (e as conexões `asyncpg` que ela abre) fica presa ao
-    loop em que foi criada — reutilizá-la em testes que rodam em loops
-    diferentes causa `InterfaceError: cannot perform operation: another
-    operation is in progress` e `RuntimeError: Event loop is closed`.
-    Escopo de função aqui garante que a engine sempre nasce no mesmo
-    loop do teste que a está usando. Com o schema atual (poucas
-    tabelas), o custo de recriar via `create_all`/`drop_all` a cada
-    teste é desprezível.
+    Nota de decisão: Inicialmente esta fixture tinha o escopo de sessão, mas isso quebrava
+    o `pytest-asyncio`, que abre um loop de eventos novo para cada teste. Como a engine e
+    as conexões ficam presas ao loop onde nasceram, tentar reaproveitá-las causava erros
+    de loop fechado e operações concorrentes travadas. O escopo de função garante que a
+    engine use sempre o mesmo loop do teste atual. Como o banco é pequeno, o custo de
+    recriar as tabelas a cada teste é insignificante.
     """
+
     engine = create_async_engine(str(settings.DATABASE_URL))
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
@@ -62,10 +51,11 @@ async def _engine():
 @pytest_asyncio.fixture
 async def db_session(_engine) -> AsyncGenerator[AsyncSession, None]:
     """
-    Sessão de banco por teste, dentro de uma transação revertida ao
-    final — cada teste enxerga um banco "limpo", sem custo de recriar
-    tabelas a cada execução.
+    Sessão de banco para cada teste, rodando dentro de uma transação isolada.
+    Ao final do teste, um rollback é executado. Isso garante um banco limpo
+    para o próximo teste, sem o custo de recriar as tabelas do zero.
     """
+
     connection = await _engine.connect()
     transaction = await connection.begin()
     session_factory = async_sessionmaker(bind=connection, expire_on_commit=False)
@@ -82,16 +72,12 @@ async def db_session(_engine) -> AsyncGenerator[AsyncSession, None]:
 @pytest_asyncio.fixture(autouse=True)
 async def _reset_rate_limit_counters() -> AsyncGenerator[None, None]:
     """
-    Zera o Redis usado para rate limiting antes de cada teste.
-
-    Nota de decisão: `get_redis_client()` é `@lru_cache` (um único
-    cliente para todo o processo — correto em produção, onde há um
-    único event loop de longa duração). Em testes, cada função roda em
-    um event loop *novo* (mesmo motivo do fix em `_engine`), então
-    reaproveitar o cliente cacheado do teste anterior causa
-    `RuntimeError: Event loop is closed`. Limpamos o cache aqui para
-    forçar um cliente novo, criado já no loop do teste atual.
+    Zera o Redis de rate limit antes de cada teste e corrige problemas de loop de eventos.
+    Mudar o loop a cada teste quebra o cliente do Redis guardado em cache (lru_cache),
+    causando erros de loop fechado. Limpar o cache aqui força a criação de um cliente
+    novo para o loop de eventos do teste atual.
     """
+
     from app.integrations.redis_client import get_redis_client
 
     get_redis_client.cache_clear()
@@ -104,10 +90,12 @@ async def _reset_rate_limit_counters() -> AsyncGenerator[None, None]:
 @pytest_asyncio.fixture
 async def client(db_session: AsyncSession) -> AsyncGenerator[AsyncClient, None]:
     """
-    Cliente HTTP assíncrono (`httpx.AsyncClient`) contra a aplicação
-    FastAPI real, com a dependência de banco sobrescrita para usar a
-    sessão transacional do teste (`db_session`).
+    Cliente HTTP assíncrono para testar as rotas da aplicação FastAPI.
+
+    A dependência do banco de dados é substituída para usar a mesma sessão
+    com rollback do teste (`db_session`), garantindo o isolamento dos dados.
     """
+
     from app.api.dependencies.db_dependency import get_db
 
     app = create_app()

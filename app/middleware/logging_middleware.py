@@ -1,14 +1,9 @@
 """
-Logging estruturado por requisição, correlação de requisições e
-aplicação dos headers de segurança (Seção 8).
+Middleware para logs estruturados, ID de correlação e headers de segurança.
 
-Nota de decisão: a Seção 8 diz que os headers de segurança devem ser
-"aplicados via middleware", sem especificar qual — apliquei aqui, neste
-middleware, já que ele já envolve toda resposta (`call_next`) para
-medir duração e logar status, então é o ponto natural para também
-injetar headers de resposta, sem precisar de um middleware extra não
-previsto na árvore de pastas (Seção 4 só lista três arquivos em
-`middleware/`).
+Injeta as configurações de segurança e mede o tempo de resposta do app.
+Centraliza essas ações em um único middleware para otimizar o fluxo de
+resposta sem a necessidade de criar múltiplos arquivos no projeto.
 """
 
 from __future__ import annotations
@@ -28,15 +23,14 @@ logger = get_logger(__name__)
 
 
 class LoggingMiddleware(BaseHTTPMiddleware):
-    """Middleware de logging estruturado, correlação de requisições e security headers."""
+    """Middleware de logs, ID de correlação e headers de segurança."""
 
     async def dispatch(self, request: Request, call_next: RequestResponseEndpoint) -> Response:
         correlation_id = request.headers.get(CORRELATION_ID_HEADER) or str(uuid.uuid4())
 
-        # `bind_contextvars` torna `correlation_id` presente em *todo*
-        # log estruturado emitido durante o processamento desta
-        # requisição (inclusive dentro de `services`/`repositories`),
-        # sem precisar passar o valor manualmente por toda a call stack.
+        # Vincula o ID de correlação ao contexto para que apareça
+        # em todos os logs da requisição de forma automática.
+
         structlog.contextvars.clear_contextvars()
         structlog.contextvars.bind_contextvars(correlation_id=correlation_id)
 

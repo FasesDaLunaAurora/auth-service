@@ -1,18 +1,13 @@
 """
-Cliente de envio de e-mail via SMTP.
+Cliente de envio de e-mails via SMTP.
 
-Nota de decisão: nem o cronograma de etapas nem a Seção 2 (Stack)
-detalham uma biblioteca específica para envio assíncrono de e-mail (ex:
-`aiosmtplib`), mas os fluxos de `AuthService` (confirmação de e-mail,
-recuperação de senha) exigem esta integração para serem funcionais de
-ponta a ponta. Implemento usando apenas `smtplib` da *standard library*,
-executado em thread separada via `asyncio.to_thread` para não bloquear
-o event loop — evitando introduzir uma dependência nova não prevista.
+Usa a biblioteca nativa `smtplib` rodando em uma thread separada via
+`asyncio.to_thread` para não travar o event loop da aplicação, evitando
+dependências externas desnecessárias.
 
-Em ambiente de desenvolvimento/teste (sem `SMTP_HOST` configurado), o
-cliente **não falha** — ele registra a mensagem via log estruturado e
-retorna normalmente, para não travar o fluxo de registro/reset de senha
-em ambientes sem infraestrutura de e-mail real.
+Se o `SMTP_HOST` não estiver configurado (ambiente local/testes), o cliente
+apenas printa o e-mail no log estruturado e simula o sucesso do envio,
+evitando quebrar o fluxo de onboarding nas máquinas locais.
 """
 
 from __future__ import annotations
@@ -28,7 +23,7 @@ logger = get_logger(__name__)
 
 
 class EmailClient:
-    """Fachada de envio de e-mail usada por `AuthService`."""
+    """Helper de envio de e-mails para o `AuthService`."""
 
     def _send_sync(self, *, to: str, subject: str, body: str) -> None:
         assert settings.SMTP_HOST, "SMTP_HOST deve estar configurado para enviar e-mail."
@@ -46,7 +41,7 @@ class EmailClient:
             smtp.send_message(message)
 
     async def send_email(self, *, to: str, subject: str, body: str) -> None:
-        """Envia um e-mail de forma assíncrona (via thread), sem bloquear o event loop."""
+        """Envia o e-mail em background sem travar o event loop."""
         if not settings.SMTP_HOST:
             logger.warning(
                 "smtp_not_configured_email_skipped",
@@ -57,7 +52,7 @@ class EmailClient:
         await asyncio.to_thread(self._send_sync, to=to, subject=subject, body=body)
 
     async def send_email_confirmation(self, *, to: str, token: str) -> None:
-        """Envia o e-mail com o token de confirmação de cadastro (Seção 6)."""
+        """Envia o e-mail com o token de confirmação de cadastro."""
         body = (
             "Bem-vindo(a)! Confirme seu cadastro usando o token abaixo no endpoint "
             f"de confirmação de e-mail:\n\n{token}\n\n"
@@ -66,7 +61,7 @@ class EmailClient:
         await self.send_email(to=to, subject="Confirme seu e-mail", body=body)
 
     async def send_password_reset(self, *, to: str, token: str) -> None:
-        """Envia o e-mail com o token de redefinição de senha (Seção 6: `/auth/password/reset`)."""
+        """Envia o e-mail com o token de redefinição de senha."""
         body = (
             "Recebemos uma solicitação de redefinição de senha. Use o token abaixo "
             f"no endpoint de redefinição:\n\n{token}\n\n"

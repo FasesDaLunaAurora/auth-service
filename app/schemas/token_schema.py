@@ -1,9 +1,9 @@
 """
-Contratos relacionados a tokens (JWT de acesso/refresh).
+Schemas de token (JWT de acesso e refresh).
 
-Estes schemas são consumidos por `app/security/jwt_handler.py` (Etapa 5,
-para tipar o payload decodificado) e por `app/schemas/auth_schema.py`
-(para tipar as respostas de login/refresh).
+Usados em `app/security/jwt_handler.py` (para tipar o payload
+decodificado) e em `app/schemas/auth_schema.py` (para tipar as
+respostas de login e refresh).
 """
 
 from __future__ import annotations

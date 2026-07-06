@@ -1,4 +1,9 @@
-"""Testes unitários de `PasswordHandler` — não tocam banco de dados nem HTTP."""
+"""
+Testes unitários do `PasswordHandler`.
+
+Valida a lógica de hash e verificação de senhas sem acessar o
+banco de dados ou fazer chamadas HTTP.
+"""
 
 from __future__ import annotations
 

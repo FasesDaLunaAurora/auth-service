@@ -1,9 +1,7 @@
 """
-Entidade `Permission`.
-
-Cada permissão é um código atômico e granular (ex: `user:create`,
-`role:assign`), usado pela camada `api/dependencies/permission_dependency.py`
-(Etapa 8) para autorização baseada em RBAC.
+Modelo de Permissão (RBAC).
+Cada permissão é um código granular (ex: `user:create`, `role:assign`)
+utilizado pelas dependências da API para controle de acesso.
 """
 
 from __future__ import annotations
@@ -22,11 +20,10 @@ if TYPE_CHECKING:
 
 class Permission(UUIDPrimaryKeyMixin, Base):
     """
-    Permissão granular do sistema (ex.: `user:create`, `session:revoke`).
+    Permissão granular do sistema (ex: `user:create`).
 
-    O campo `code` segue a convenção `recurso:acao`, usada de forma
-    consistente em `app/core/constants.py::PermissionCode` e nos
-    decorators de autorização das rotas (Etapa 8).
+    O campo `code` segue o padrão `recurso:acao`, usado nas constantes
+    do sistema e nos decorators de autorização das rotas.
     """
 
     __tablename__ = "permissions"
@@ -41,4 +38,6 @@ class Permission(UUIDPrimaryKeyMixin, Base):
     )
 
     def __repr__(self) -> str:  # pragma: no cover
+        # "pragma: no cover" ignora cobertura de testes, use com cuidado,
+        # esse método é só para debug, por isso está sendo desconsiderado.
         return f"<Permission id={self.id} code={self.code!r}>"

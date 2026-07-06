@@ -1,11 +1,10 @@
 """
-Repositório de `User`.
+Repositório de Usuários.
 
-Regra de camada (Seção 3): este módulo contém apenas
-`SELECT`/`INSERT`/`UPDATE`/`DELETE` via SQLAlchemy. Nenhuma decisão de
-negócio vive aqui — por exemplo, este repositório sabe *como* persistir
-um bloqueio de conta (`set_lock`), mas não decide *quando* bloquear
-(isso é responsabilidade de `app/services/auth_service.py`, Etapa 6).
+Centraliza as operações de consulta e persistência da tabela de usuários.
+
+As validações de negócio, como determinar o momento exato de bloquear
+ou desbloquear um acesso, ficam sob responsabilidade da camada de serviços.
 """
 
 from __future__ import annotations
@@ -21,13 +20,14 @@ from app.models.user_model import User
 
 
 class UserRepository:
-    """Acesso a dados da entidade `User`, isolado de regras de negócio."""
+    """Acesso a dados de usuários, isolado das regras de negócio."""
 
     def __init__(self, db: AsyncSession) -> None:
         self._db = db
 
     async def get_by_id(self, user_id: uuid.UUID, *, include_deleted: bool = False) -> User | None:
-        """Busca um usuário por ID. Por padrão, ignora usuários com exclusão lógica."""
+        """Busca um usuário por ID, desconsiderando contas removidas."""
+
         stmt = select(User).where(User.id == user_id)
         if not include_deleted:
             stmt = stmt.where(User.deleted_at.is_(None))
@@ -36,10 +36,11 @@ class UserRepository:
 
     async def get_by_email(self, email: str, *, include_deleted: bool = False) -> User | None:
         """
-        Busca um usuário pelo e-mail (já normalizado em minúsculas pelo
-        `@validates` do model — aqui apenas normalizamos defensivamente
-        de novo, para o caso de o chamador passar um valor não tratado).
+        Busca um usuário pelo e-mail.
+        Ajusta o texto para letras minúsculas por segurança, garantindo a
+        localização correta do registro mesmo se o valor enviado vier sem tratamento.
         """
+
         stmt = select(User).where(User.email == email.strip().lower())
         if not include_deleted:
             stmt = stmt.where(User.deleted_at.is_(None))
@@ -47,7 +48,8 @@ class UserRepository:
         return result.scalar_one_or_none()
 
     async def exists_by_email(self, email: str) -> bool:
-        """Verifica existência por e-mail sem carregar a entidade completa."""
+        """Verifica se um e-mail já existe sem carregar todos os dados."""
+
         stmt = (
             select(func.count())
             .select_from(User)
@@ -57,31 +59,28 @@ class UserRepository:
         return (result.scalar_one() or 0) > 0
 
     async def create(self, user: User) -> User:
-        """Persiste um novo usuário e sincroniza o ID gerado (`flush`, sem `commit`)."""
+        """Salva o usuário no banco e atualiza o ID gerado sem encerrar a transação."""
         self._db.add(user)
         await self._db.flush()
-        # Mesma proteção aplicada em `RoleRepository.create()`: garante
-        # que `.roles` esteja carregado (vazio) antes de o objeto ser
-        # devolvido, prevenindo `MissingGreenlet` caso algum chamador
-        # futuro serialize `UserRead` (que inclui `roles`) logo após a
-        # criação, sem passar por uma consulta real antes.
+        # Carrega a lista de papéis (roles) para evitar erros de relacionamento
+        # ao transformar o usuário em formato de resposta da API (JSON).
+
         await self._db.refresh(user, attribute_names=["roles"])
         return user
 
     async def update(self, user: User) -> User:
         """
-        Marca o objeto (já anexado à sessão) como sujo e sincroniza.
-
-        Como `user` normalmente já foi carregado da própria sessão
-        (`get_by_id`), esta operação em geral é redundante com o
-        autoflush do SQLAlchemy — mantida explícita para deixar o
-        contrato do repositório claro para quem lê a camada de serviço.
+        Sincroniza as alterações do usuário com o banco de dados.
+        Força a atualização dos dados editados para garantir que as novas
+        informações fiquem prontas para uso imediato.
         """
+
         await self._db.flush()
         return user
 
     async def soft_delete(self, user: User, *, deleted_at: datetime) -> None:
-        """Aplica exclusão lógica, preservando o registro para auditoria/integridade."""
+        """Aplica exclusão lógica, mantendo o registro no banco para histórico."""
+
         user.deleted_at = deleted_at
         await self._db.flush()
 
@@ -93,12 +92,11 @@ class UserRepository:
         search: str | None = None,
     ) -> tuple[list[User], int]:
         """
-        Lista usuários paginados, com filtro opcional por e-mail ou nome.
-
-        Retorna `(items, total)` para que o Service monte o envelope de
-        paginação (`UserListResponse`) sem o Repository precisar
-        conhecer o formato de resposta HTTP.
+        Lista usuários paginados com filtros opcionais de busca.
+        Retorna a lista e o total de registros encontrados, deixando a
+        formatação da resposta final por conta da camada superior.
         """
+
         base_stmt = select(User).where(User.deleted_at.is_(None))
         count_stmt = select(func.count()).select_from(User).where(User.deleted_at.is_(None))
 
@@ -124,26 +122,33 @@ class UserRepository:
         return items, total
 
     async def set_lock(self, user: User, *, locked_until: datetime | None) -> None:
-        """Persiste (ou limpa, se `None`) o bloqueio temporário de força bruta."""
+        """Salva ou remove o bloqueio temporário por excesso de tentativas."""
+
         user.locked_until = locked_until
         await self._db.flush()
 
     async def increment_failed_attempts(self, user: User) -> int:
-        """Incrementa e persiste o contador de tentativas de login falhas."""
+        """Soma mais uma tentativa ao contador de logins incorretos."""
+
         user.failed_login_attempts += 1
         await self._db.flush()
         return user.failed_login_attempts
 
     async def reset_failed_attempts(self, user: User) -> None:
-        """Zera o contador de tentativas falhas (chamado após login bem-sucedido)."""
+        """Zera as tentativas de login incorretos após um acesso bem-sucedido."""
+
         user.failed_login_attempts = 0
         await self._db.flush()
 
-    # Ver nota de decisão equivalente em
-    # `RoleRepository.assign_permission` sobre por que o `refresh()`
-    # explícito abaixo é necessário para evitar `MissingGreenlet`.
+    # Sincroniza os dados para carregar os papéis (roles) com segurança,
+    # evitando erros de carregamento assíncrono ao acessar o relacionamento.
+
     async def assign_role(self, user: User, role: Role) -> bool:
-        """Adiciona uma role ao usuário, se ainda não presente. Retorna se foi nova."""
+        """
+        Vincula um papel (role) ao usuário, caso ainda não possua.
+        Retorna se a atribuição foi nova ou se o usuário já tinha o papel.
+        """
+
         await self._db.refresh(user, attribute_names=["roles"])
         if role not in user.roles:
             user.roles.append(role)
@@ -152,7 +157,11 @@ class UserRepository:
         return False
 
     async def remove_role(self, user: User, role: Role) -> bool:
-        """Remove uma role da coleção de roles do usuário, se presente. Retorna se foi removida."""
+        """
+        Remove um papel (role) do usuário, caso esteja associado.
+        Retorna se a remoção foi feita ou se ele já não tinha o papel.
+        """
+
         await self._db.refresh(user, attribute_names=["roles"])
         if role in user.roles:
             user.roles.remove(role)

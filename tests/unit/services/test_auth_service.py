@@ -1,9 +1,8 @@
 """
-Testes unitários de `AuthService`, com repositórios mockados (Seção 9:
-"Unitários: cobrindo toda a camada services... com mocks dos
-repositórios"). Cobre os casos de borda obrigatórios: login com conta
-bloqueada, refresh token reutilizado após revogação, e-mail duplicado
-no cadastro.
+Testes unitários do `AuthService` com repositórios simulados (mocks).
+
+Valida as regras de negócio em cenários críticos, como login em conta
+bloqueada, reuso de refresh token cancelado e cadastro com e-mail duplicado.
 """
 
 from __future__ import annotations
@@ -79,7 +78,6 @@ async def test_register_raises_when_email_already_exists() -> None:
 
 @pytest.mark.asyncio
 async def test_login_with_locked_account_raises_account_locked_error() -> None:
-    """Caso de borda obrigatório (Seção 9): login com conta bloqueada."""
     service, user_repo, *_ = _build_service()
     locked_user = _make_user(locked_until=datetime.now(UTC) + timedelta(minutes=10))
     user_repo.get_by_email.return_value = locked_user
@@ -93,10 +91,12 @@ async def test_login_with_locked_account_raises_account_locked_error() -> None:
 @pytest.mark.asyncio
 async def test_refresh_with_revoked_token_reuse_raises_and_revokes_everything() -> None:
     """
-    Caso de borda obrigatório (Seção 9): refresh token reutilizado após
-    revogação deve levantar `TokenRevokedError` e revogar todas as
-    sessões/refresh tokens do usuário (proteção anti-replay, Seção 7).
+    Teste para reuso de refresh token cancelado.
+
+    Garante que tentar usar um token já cancelado bloqueie o acesso e
+    encerre todas as sessões do usuário por segurança contra ataques de replay.
     """
+
     service, user_repo, refresh_token_repo, session_repo, _ = _build_service()
 
     from app.security.jwt_handler import JWTHandler
@@ -109,7 +109,7 @@ async def test_refresh_with_revoked_token_reuse_raises_and_revokes_everything() 
         user_id=user.id,
         token_hash=JWTHandler.hash_token(issued_refresh.token),
         expires_at=datetime.now(UTC) + timedelta(days=1),
-        revoked=True,  # já revogado — simula reuso/replay
+        revoked=True,  # já revogado, simula reuso
     )
     refresh_token_repo.get_by_token_hash.return_value = stored_token
 

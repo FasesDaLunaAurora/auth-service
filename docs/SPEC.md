@@ -1,6 +1,6 @@
 # Especificação Técnica — Auth Service
 
-Este documento reúne o levantamento de requisitos e as decisões técnicas definidas antes (e ajustadas ao longo) do desenvolvimento deste projeto. Serve como referência de arquitetura e como registro do que foi decidido e por quê — útil tanto para retomar o projeto depois de um tempo parado quanto para quem for contribuir.
+Este documento reúne o levantamento de requisitos e as decisões técnicas definidas ou ajustadas ao longo do desenvolvimento deste projeto. Serve como referência de arquitetura e como registro do que foi decidido e por quê, útil tanto para retomar o projeto depois de um tempo parado quanto para quem for contribuir.
 
 ---
 
@@ -10,7 +10,6 @@ O **Auth Service** é um microsserviço de autenticação e autorização, desac
 
 O objetivo é centralizar **autenticação**, **autorização** e **gestão de usuários**, de modo que qualquer sistema cliente possa delegar essas responsabilidades a este serviço via API, sem precisar reimplementar login, controle de sessão ou RBAC internamente a cada novo projeto.
 
-O projeto foi pensado desde o início como **pronto para produção e reutilizável como base para outros projetos** — não como protótipo ou MVP descartável. Isso implica: sem placeholders de "implementar depois", com tratamento de erro completo e testes cobrindo os fluxos críticos antes de considerar qualquer etapa "concluída".
 
 ### Princípios de engenharia adotados
 
@@ -20,7 +19,7 @@ O projeto foi pensado desde o início como **pronto para produção e reutilizá
 - **Repository Pattern** — acesso a dados isolado em repositórios
 - **Service Layer** — toda regra de negócio centralizada em services
 - **Programação defensiva** e **Fail Fast / Fail Secure**
-- **Security by Design** — segurança tratada como parte de cada decisão, não como camada adicionada depois
+- **Security by Design** — segurança tratada como parte de cada decisão
 - Recomendações **OWASP** para APIs (OWASP API Security Top 10)
 - Tipagem forte em todo o código (type hints completos, validados com Mypy em modo strict)
 - Código testável: nenhuma camada deve impedir testes unitários isolados das demais
@@ -217,7 +216,7 @@ auth-service/
 └── README.md
 ```
 
-Não existe uma pasta `utils/` genérica — funções auxiliares vivem dentro do módulo que as usa, evitando o "cesto de miscelânea" que esse tipo de pasta tende a virar em projetos maiores.
+Não existe uma pasta `utils/` genérica — funções auxiliares vivem dentro do módulo que as usa, evitando o "cesto de miscelânea" que esse tipo de pasta tende a virar.
 
 ---
 
@@ -420,6 +419,7 @@ Este documento cobre arquitetura e requisitos técnicos. A documentação está 
 | Documento | Para quem |
 |---|---|
 | `README.md` (raiz) | Visão geral do projeto |
+| `docs/roadmap.md` | Visão geral do projeto |
 | `docs/development-guide.md` | Quem vai rodar/desenvolver localmente |
 | `docs/deployment-guide.md` | Quem vai colocar em produção |
 | `docs/integration-guide.md` | Quem vai integrar outra aplicação a este serviço |

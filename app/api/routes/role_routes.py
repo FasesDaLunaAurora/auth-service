@@ -1,7 +1,4 @@
-"""
-Rotas de roles (`/api/v1/roles`, Seção 6) — CRUD completo + atribuição
-de permissões a uma role.
-"""
+"""Rotas de gerenciamento de roles: CRUD completo e vínculo de permissões."""
 
 from __future__ import annotations
 
@@ -77,9 +74,6 @@ async def update_role(
 )
 async def delete_role(role_id: uuid.UUID, role_service: RoleServiceDep) -> None:
     await role_service.delete_role(role_id)
-
-
-# --- Atribuição de permissões a uma role (ver nota de path em `audit_middleware.py`) ---
 
 
 @router.post(

@@ -1,7 +1,7 @@
 """
-Testes de API para `/api/v1/roles`. Usa um usuário `is_superuser=True`
-(bypass de RBAC, ver `RoleService.user_has_permission`) para exercitar o
-CRUD sem depender de um fluxo de seed de permissões.
+Testes de API para as rotas de roles (`/api/v1/roles`).
+Usa um superusuário para rodar o CRUD livremente. Isso evita que os
+testes dependam do script de seed de permissões para funcionar.
 """
 
 from __future__ import annotations
@@ -78,13 +78,6 @@ async def test_create_role_with_duplicate_name_returns_conflict(
 async def test_assign_and_revoke_permission_on_a_freshly_created_role(
     client: AsyncClient, db_session
 ) -> None:
-    """
-    Cobre o caminho exato que quebrava com `MissingGreenlet`
-    (`RoleRepository.assign_permission` acessando `role.permissions`
-    logo após criar a role, sem um refresh explícito) — esta rota nunca
-    tinha sido exercitada por teste algum antes desse bug aparecer em
-    uso manual.
-    """
     token = await _create_superuser_token(client, db_session)
     headers = {"Authorization": f"Bearer {token}"}
 
@@ -110,7 +103,6 @@ async def test_assign_and_revoke_permission_on_a_freshly_created_role(
     assert assign_response.status_code == 200
     assert any(p["id"] == permission_id for p in assign_response.json()["permissions"])
 
-    # Atribuir de novo (idempotência) não deve duplicar nem quebrar.
     repeat_response = await client.post(
         f"/api/v1/roles/{role_id}/permissions",
         headers=headers,
@@ -128,7 +120,6 @@ async def test_assign_and_revoke_permission_on_a_freshly_created_role(
 
 @pytest.mark.asyncio
 async def test_assign_and_revoke_role_on_a_user(client: AsyncClient, db_session) -> None:
-    """Cobre `UserRepository.assign_role`/`remove_role` — mesmo padrão de risco corrigido."""
     token = await _create_superuser_token(client, db_session)
     headers = {"Authorization": f"Bearer {token}"}
 

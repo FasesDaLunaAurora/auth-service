@@ -1,6 +1,4 @@
-"""
-Exceções de domínio específicas do fluxo de autenticação e autorização.
-"""
+"""Exceções do fluxo de autenticação e autorização."""
 
 from __future__ import annotations
 
@@ -10,11 +8,9 @@ from app.exceptions.base_exception import DomainException
 
 class InvalidCredentialsError(DomainException):
     """
-    E-mail/senha incorretos, ou e-mail não cadastrado.
-
-    A mensagem é deliberadamente genérica (Seção 8: "mensagens de erro
-    de login não devem revelar se o e-mail existe") — usada tanto para
-    'usuário não encontrado' quanto para 'senha incorreta'.
+    Erro de credenciais inválidas.
+    A mensagem é genérica para evitar que o sistema revele se o e-mail
+    existe ou não no banco (proteção contra enumeration attacks).
     """
 
     error_code = ErrorCode.INVALID_CREDENTIALS
@@ -23,18 +19,18 @@ class InvalidCredentialsError(DomainException):
 
 
 class AccountLockedError(DomainException):
-    """Conta temporariamente bloqueada por excesso de tentativas de login falhas."""
+    """Conta bloqueada por excesso de tentativas inválidas."""
 
     error_code = ErrorCode.ACCOUNT_LOCKED
     default_message = (
         "Conta temporariamente bloqueada devido a múltiplas tentativas de login "
         "malsucedidas. Tente novamente mais tarde."
     )
-    status_code = 423  # 423 Locked
+    status_code = 423
 
 
 class AccountInactiveError(DomainException):
-    """Conta desativada (`is_active=False`) — bloqueia login e uso de tokens existentes."""
+    """Conta desativada: bloqueia novos logins e invalida os tokens ativos."""
 
     error_code = ErrorCode.ACCOUNT_INACTIVE
     default_message = "Esta conta está desativada."
@@ -42,7 +38,7 @@ class AccountInactiveError(DomainException):
 
 
 class AccountNotVerifiedError(DomainException):
-    """Conta ainda não confirmou o e-mail (`is_verified=False`)."""
+    """Conta com e-mail pendente de confirmação."""
 
     error_code = ErrorCode.ACCOUNT_NOT_VERIFIED
     default_message = "É necessário confirmar seu e-mail antes de fazer login."
@@ -51,9 +47,7 @@ class AccountNotVerifiedError(DomainException):
 
 class InvalidTokenError(DomainException):
     """
-    Token (access, refresh, reset, confirmação ou desafio MFA)
-    inválido, malformado, com assinatura incorreta ou de tipo
-    incompatível com o endpoint que o recebeu.
+    Token inválido, malformado, com assinatura incorreta ou tipo incompatível.
     """
 
     error_code = ErrorCode.TOKEN_INVALID
@@ -63,22 +57,16 @@ class InvalidTokenError(DomainException):
 
 class TokenTypeMismatchError(InvalidTokenError):
     """
-    Token estruturalmente válido, porém de um `type` diferente do
-    esperado pelo endpoint (ex: um `refresh_token` apresentado onde um
-    `access_token` era esperado, ou vice-versa).
-
-    Subclasse de `InvalidTokenError` — do ponto de vista do cliente da
-    API, ambos retornam o mesmo `error_code`/status; a distinção de
-    classe existe para quem consome esta exceção internamente
-    (`app/security/jwt_handler.py`) poder logar a causa exata, se
-    necessário.
+    Token com tipo diferente do esperado pelo endpoint.
+    Subclasse de `InvalidTokenError`. O cliente da API recebe o mesmo código
+    de erro, mas a distinção interna serve para gerar logs mais específicos.
     """
 
     default_message = "Tipo de token incompatível com esta operação."
 
 
 class TokenExpiredError(DomainException):
-    """Token estruturalmente válido, porém expirado."""
+    """Token expirado."""
 
     error_code = ErrorCode.TOKEN_EXPIRED
     default_message = "Token expirado."
@@ -87,11 +75,9 @@ class TokenExpiredError(DomainException):
 
 class TokenRevokedError(DomainException):
     """
-    Refresh token já revogado foi reapresentado (reuso/replay).
-
-    Quando esta exceção é levantada, o `auth_service` já revogou, como
-    efeito colateral de segurança, **todas** as sessões do usuário
-    (Seção 7) antes de propagar o erro.
+    Tentativa de reuso de um Refresh Token já revogado (Replay Attack).
+    Quando este erro ocorre, todas as sessões ativas do usuário são derrubadas
+    imediatamente como medida preventiva de segurança.
     """
 
     error_code = ErrorCode.TOKEN_REVOKED
@@ -102,7 +88,7 @@ class TokenRevokedError(DomainException):
 
 
 class MFARequiredError(DomainException):
-    """Reservada para cenários em que uma rota exige MFA ativo e ele não está configurado."""
+    """Lançada quando a rota exige MFA, mas ele não está configurado."""
 
     error_code = ErrorCode.MFA_REQUIRED
     default_message = "Autenticação multifator é obrigatória para esta conta."
@@ -110,7 +96,7 @@ class MFARequiredError(DomainException):
 
 
 class InvalidMFACodeError(DomainException):
-    """Código TOTP informado em `POST /auth/mfa/verify` é inválido ou expirado."""
+    """Código TOTP inválido ou expirado."""
 
     error_code = ErrorCode.MFA_INVALID_CODE
     default_message = "Código de autenticação multifator inválido."

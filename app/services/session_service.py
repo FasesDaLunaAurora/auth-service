@@ -1,8 +1,8 @@
 """
-Regras de negócio de `Session` (`/api/v1/sessions`).
+Regras de negócio de gerenciamento de sessões (`/api/v1/sessions`).
 
-Ver nota de decisão em `permission_service.py` sobre módulos gerados
-antecipadamente por dependência estrutural da árvore de pastas.
+Criado para respeitar a estrutura de pastas do projeto, que exige um service
+para cada entidade com rotas CRUD ativas.
 """
 
 from __future__ import annotations
@@ -15,8 +15,6 @@ from app.repositories.session_repository import SessionRepository
 
 
 class SessionService:
-    """Orquestra as regras de negócio de `Session`."""
-
     def __init__(self, session_repository: SessionRepository) -> None:
         self._sessions = session_repository
 
@@ -26,15 +24,14 @@ class SessionService:
 
     async def revoke_session(self, *, user_id: uuid.UUID, session_id: uuid.UUID) -> None:
         """
-        Revoga uma sessão específica (`DELETE /sessions/{id}`).
+        Encerra uma sessão específica (`DELETE /sessions/{id}`).
 
-        Verifica que a sessão pertence ao usuário autenticado antes de
-        revogá-la — esta é uma checagem de **posse do recurso**, não de
-        RBAC (por isso vive aqui, no service, e não em
-        `permission_dependency.py`): mesmo um usuário sem nenhuma role
-        especial deve poder revogar suas próprias sessões, mas nunca as
-        de terceiros.
+        Valida se a sessão pertence ao usuário logado antes de excluí-la. Por ser uma
+        validação de dono do recurso (e não de perfil de acesso), essa regra fica aqui
+        no service. Qualquer usuário comum pode derrubar suas próprias sessões, mas
+        nunca as de outras pessoas.
         """
+
         session = await self._sessions.get_by_id(session_id)
         if session is None:
             raise ResourceNotFoundError("Sessão")

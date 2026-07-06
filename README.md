@@ -203,7 +203,7 @@ Cobertura de testes unitários (services/security, com mocks), integração (rep
 | [`docs/integration-guide.md`](docs/integration-guide.md) | Integrando outra aplicação a este serviço |
 | [`docs/usage-guide.md`](docs/usage-guide.md) | O que a API faz, do ponto de vista funcional |
 | [`docs/permissions-reference.md`](docs/permissions-reference.md) | Referência detalhada de cada permissão do RBAC |
-
+| [`roadmap.md`](./roadmap.md) | O que já tem infraestrutura pronta no código mas ainda não está conectado a um endpoint e o que falta pra cobrir tudo. |
 ---
 
 ## 🛠️ Tecnologias

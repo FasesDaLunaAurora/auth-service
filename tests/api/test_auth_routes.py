@@ -1,7 +1,9 @@
 """
-Testes de API (`httpx.AsyncClient`) para `/api/v1/auth`, cobrindo os
-fluxos completos de autenticação e os casos de borda obrigatórios da
-Seção 9: e-mail duplicado no cadastro, login com conta bloqueada.
+Testes de API para as rotas de autenticação (`/api/v1/auth`).
+
+Valida os fluxos de acesso usando o cliente assíncrono do httpx. Cobre
+cenários específicos como cadastro com e-mail já existente e tentativa
+de login com conta bloqueada.
 """
 
 from __future__ import annotations
@@ -23,14 +25,14 @@ _REGISTER_PAYLOAD = {
 
 
 async def _register_and_verify(client: AsyncClient, db_session, *, email: str) -> None:
-    """Helper: registra um usuário e marca `is_verified=True` diretamente no banco.
-
-    A confirmação de e-mail real depende de um token enviado por e-mail
-    (não exposto na resposta HTTP, por design) — para testes de outros
-    fluxos que exigem uma conta já confirmada, ajustamos o estado
-    diretamente via repositório, mantendo o teste do fluxo de
-    confirmação em si isolado e não bloqueando os demais.
     """
+    Helper: cadastra um usuário e ativa a conta direto no banco.
+
+    Como o token de confirmação real é enviado apenas por e-mail e não vem na
+    resposta da API, alteramos o status direto pelo repositório. Isso permite
+    testar outras rotas que exigem conta ativada sem depender do fluxo de e-mail.
+    """
+
     payload = {**_REGISTER_PAYLOAD, "email": email}
     response = await client.post("/api/v1/auth/register", json=payload)
     assert response.status_code == 201
@@ -42,7 +44,8 @@ async def _register_and_verify(client: AsyncClient, db_session, *, email: str) -
 
 
 async def _register_verify_and_login(client: AsyncClient, db_session, *, email: str) -> dict:
-    """Helper: registra, verifica e loga, retornando o corpo de `TokenResponse`."""
+    """Helper: cadastra, ativa e faz o login do usuário, retornando os tokens."""
+
     await _register_and_verify(client, db_session, email=email)
     response = await client.post(
         "/api/v1/auth/login",
@@ -54,7 +57,6 @@ async def _register_verify_and_login(client: AsyncClient, db_session, *, email: 
 
 @pytest.mark.asyncio
 async def test_register_rejects_duplicate_email(client: AsyncClient) -> None:
-    """Caso de borda obrigatório (Seção 9): e-mail duplicado no cadastro."""
     first_response = await client.post("/api/v1/auth/register", json=_REGISTER_PAYLOAD)
     assert first_response.status_code == 201
 
@@ -111,7 +113,6 @@ async def test_login_with_invalid_credentials_returns_generic_message(
 async def test_account_locks_after_max_failed_login_attempts(
     client: AsyncClient, db_session
 ) -> None:
-    """Caso de borda obrigatório (Seção 9): login com conta bloqueada."""
     email = "will-be-locked@example.com"
     await _register_and_verify(client, db_session, email=email)
 
@@ -133,11 +134,6 @@ async def test_account_locks_after_max_failed_login_attempts(
 
 @pytest.mark.asyncio
 async def test_access_protected_route_without_token_returns_401(client: AsyncClient) -> None:
-    """
-    `HTTPBearer` (usado em `auth_dependency.py`) retorna 401 quando o
-    header `Authorization` está ausente — é o código correto (não
-    autenticado); 403 seria para "autenticado, mas sem permissão".
-    """
     response = await client.get("/api/v1/users/me")
     assert response.status_code == 401
 
@@ -166,12 +162,6 @@ async def test_refresh_rotates_tokens_successfully(client: AsyncClient, db_sessi
 async def test_refresh_with_already_used_token_revokes_all_sessions(
     client: AsyncClient, db_session
 ) -> None:
-    """
-    Caso de borda obrigatório (Seção 9): refresh token reutilizado após
-    revogação. Usa o mesmo refresh token duas vezes — a segunda deve
-    falhar, e uma terceira tentativa com o token *novo* (emitido na
-    primeira rotação) também deve falhar, pois o replay revoga tudo.
-    """
     tokens = await _register_verify_and_login(client, db_session, email="replay-attack@example.com")
 
     first_refresh = await client.post(
@@ -187,7 +177,7 @@ async def test_refresh_with_already_used_token_revokes_all_sessions(
     assert replay_response.status_code == 401
     assert replay_response.json()["error"]["code"] == "TOKEN_REVOKED"
 
-    # O token novo (da primeira rotação, legítimo) também deve ter sido
+    # O token novo da primeira rotação, legítimo, também deve ter sido
     # revogado como efeito colateral de segurança do replay detectado.
     second_refresh_attempt = await client.post(
         "/api/v1/auth/refresh", json={"refresh_token": rotated_tokens["refresh_token"]}
@@ -237,7 +227,6 @@ async def test_logout_all_revokes_every_session(client: AsyncClient, db_session)
 
 @pytest.mark.asyncio
 async def test_forgot_password_always_returns_202(client: AsyncClient, db_session) -> None:
-    """Nunca deve revelar se o e-mail existe ou não (Seção 8)."""
     existing_email = "forgot-password@example.com"
     await _register_and_verify(client, db_session, email=existing_email)
 
@@ -329,7 +318,6 @@ async def test_confirm_email_with_invalid_token_returns_401(client: AsyncClient)
 async def test_confirm_email_with_wrong_token_type_returns_401(
     client: AsyncClient, db_session
 ) -> None:
-    """Um access token (tipo errado) não deve ser aceito como confirmação de e-mail."""
     tokens = await _register_verify_and_login(
         client, db_session, email="wrong-token-type@example.com"
     )

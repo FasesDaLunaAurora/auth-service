@@ -1,11 +1,8 @@
 """
-Regras de negócio de autenticação: registro, login, MFA, rotação de
-refresh token, logout e recuperação de senha (Seção 7).
+Regras de negócio de autenticação (registro, login, MFA, refresh token, logout e reset de senha).
 
-Regra de camada (Seção 3): este módulo nunca importa `Request`,
-`Response` ou `HTTPException` — ele só levanta exceções de
-`app/exceptions/`, traduzidas para HTTP exclusivamente por
-`exception_handlers.py` na camada de API.
+Isolamento de camada: não importa `Request`, `Response` ou `HTTPException`. O módulo lança
+apenas exceções de `app/exceptions/`, que o `exception_handlers.py` converte para HTTP.
 """
 
 from __future__ import annotations
@@ -47,14 +44,14 @@ from app.security.jwt_handler import JWTHandler
 from app.security.mfa_handler import MFAHandler
 from app.security.password_handler import PasswordHandler
 
-# Hash "descartável" usado para manter o tempo de resposta de login
-# constante quando o e-mail informado não existe — mitiga enumeration
-# attacks por análise de timing (Seção 8), calculado uma única vez.
+# Hash falso para o tempo de resposta ser igual se o e-mail não existir.
+# Isso evita que descubram quais e-mails estão cadastrados medindo o tempo de resposta.
+
 _DUMMY_PASSWORD_HASH = PasswordHandler.hash("timing-attack-mitigation-placeholder")
 
 
 class AuthService:
-    """Orquestra os fluxos de autenticação descritos na Seção 7 da especificação."""
+    """Gerencia todos os fluxos de autenticação do sistema."""
 
     def __init__(
         self,
@@ -92,18 +89,19 @@ class AuthService:
         self, payload: LoginRequest, *, ip_address: str, device_info: str | None
     ) -> TokenResponse | MFAChallengeResponse:
         """
-        Executa o fluxo de login da Seção 7.
+        Faz o login do usuário.
 
-        Retorna `TokenResponse` diretamente se a conta não tiver MFA
-        ativo, ou `MFAChallengeResponse` se um segundo fator for
-        necessário para concluir o login.
+        Retorna os tokens de acesso se a conta não tiver MFA ativo, ou um
+        desafio de MFA se a segunda etapa de validação for obrigatória.
         """
+
         user = await self._users.get_by_email(payload.email)
 
         if user is None:
-            # Executa uma verificação de senha "descartável" mesmo sem
-            # usuário encontrado, para que o tempo de resposta não
-            # revele se o e-mail existe (Seção 8).
+            # Roda uma checagem de senha falsa mesmo sem achar o usuário.
+            # Assim, o tempo de resposta fica igual e ninguém descobre
+            # se o e-mail existe.
+
             PasswordHandler.verify(payload.password, _DUMMY_PASSWORD_HASH)
             raise InvalidCredentialsError()
 
@@ -137,7 +135,8 @@ class AuthService:
     async def verify_mfa(
         self, payload: VerifyMFARequest, *, ip_address: str, device_info: str | None
     ) -> TokenResponse:
-        """Conclui o login após validação do código TOTP (`POST /auth/mfa/verify`)."""
+        """Finaliza o login após validar o código TOTP."""
+
         claims = JWTHandler.decode(payload.challenge_token, expected_type=TokenType.MFA_CHALLENGE)
         user = await self._users.get_by_id(claims.sub)
 
@@ -151,11 +150,12 @@ class AuthService:
 
     async def enable_mfa(self, user: User) -> tuple[str, str]:
         """
-        Ativa MFA para o usuário autenticado (`POST /auth/mfa/enable`).
+        Ativa o MFA para o usuário logado.
 
-        Retorna `(secret, qr_code_uri)` — a camada de API os envolve em
-        `EnableMFAResponse`.
+        Retorna a chave secreta e a URL do QR code, que depois são envelopadas
+        na resposta da API.
         """
+
         secret = MFAHandler.generate_secret()
         user.mfa_secret = secret
         user.mfa_enabled = True
@@ -167,17 +167,14 @@ class AuthService:
         self, user: User, *, ip_address: str, device_info: str | None
     ) -> TokenResponse:
         """
-        Cria um novo registro de `Session` e emite o par access/refresh
-        token com a claim `sid` apontando para essa sessão — usado
-        apenas no login inicial e na conclusão do desafio de MFA, onde
-        um novo "dispositivo logado" de fato nasce.
+        Cria uma nova sessão e gera o par de tokens (acesso e refresh) com o ID da sessão (`sid`).
 
-        A `Session` precisa ser criada *antes* dos tokens porque seu ID
-        (gerado no `flush()`) é embutido como claim `sid`, permitindo
-        que `POST /auth/logout` saiba qual sessão revogar a partir do
-        próprio access token, sem exigir esse dado no corpo da
-        requisição.
+        Usado no login inicial e no fim do MFA, quando um novo dispositivo é conectado.
+        A sessão precisa ser salva antes para obtermos seu ID. Com o `sid` embutido no token,
+        o logout consegue descobrir qual sessão derrubar direto pelo token, sem precisar
+        enviar dados extras no corpo da requisição.
         """
+
         session = await self._sessions.create(
             Session(user_id=user.id, device_info=device_info, ip_address=ip_address)
         )
@@ -187,15 +184,13 @@ class AuthService:
         self, user: User, *, session_id: uuid.UUID | None = None
     ) -> TokenResponse:
         """
-        Emite apenas o par access/refresh token, sem criar uma nova
-        `Session`.
+        Gera um novo par de tokens (acesso e refresh) sem criar outra sessão.
 
-        Usado pela rotação de refresh token (`refresh()`): a sessão do
-        dispositivo já existe desde o login original — rotacionar
-        tokens não deve multiplicar registros de `Session` a cada
-        chamada a `/auth/refresh`. Quando `session_id` é informado
-        (login inicial), ele é embutido nos tokens via claim `sid`.
+        Usado na rotação de tokens (`/auth/refresh`). Como a sessão do dispositivo
+        já existe desde o login, rotacionar os tokens não deve criar novos registros
+        no banco. Passando o `session_id`, ele é embutido na claim `sid` do token.
         """
+
         access = JWTHandler.create_access_token(user.id, session_id=session_id)
         refresh = JWTHandler.create_refresh_token(user.id, session_id=session_id)
 
@@ -215,7 +210,7 @@ class AuthService:
         )
 
     async def _register_failed_attempt(self, user: User) -> None:
-        """Incrementa tentativas falhas e aplica bloqueio se o limite for atingido (Seção 7)."""
+        """Incrementa tentativas falhas e aplica bloqueio se o limite for atingido."""
         attempts = await self._users.increment_failed_attempts(user)
         if attempts >= settings.MAX_FAILED_LOGIN_ATTEMPTS:
             locked_until = utcnow() + timedelta(minutes=settings.ACCOUNT_LOCKOUT_MINUTES)
@@ -225,10 +220,12 @@ class AuthService:
 
     async def refresh(self, payload: RefreshRequest) -> TokenResponse:
         """
-        Rotaciona o refresh token (Seção 7): o token antigo é revogado e
-        um novo par é emitido. Reuso de um refresh token já revogado
-        dispara a revogação de todas as sessões do usuário.
+        Rotaciona o refresh token: cancela o token antigo e gera um novo par.
+
+        Se tentarem usar um refresh token que já foi cancelado, o sistema derruba
+        todas as sessões do usuário por segurança.
         """
+
         claims = JWTHandler.decode(payload.refresh_token, expected_type=TokenType.REFRESH)
         token_hash = JWTHandler.hash_token(payload.refresh_token)
         stored = await self._refresh_tokens.get_by_token_hash(token_hash)
@@ -237,7 +234,7 @@ class AuthService:
             raise InvalidTokenError("Refresh token não reconhecido.")
 
         if stored.revoked:
-            # Proteção contra token replay (Seção 7): revoga tudo.
+            # Proteção contra token replay: revoga tudo.
             await self._refresh_tokens.revoke_all_for_user(claims.sub)
             await self._sessions.revoke_all_for_user(claims.sub)
             raise TokenRevokedError()
@@ -256,7 +253,8 @@ class AuthService:
         return await self._issue_token_pair(user, session_id=claims.sid)
 
     async def logout(self, *, refresh_token: str | None, session_id: uuid.UUID | None) -> None:
-        """Revoga o refresh token e/ou sessão do dispositivo atual (`POST /auth/logout`)."""
+        """Invalida o refresh token e encerra a sessão do dispositivo."""
+
         if refresh_token:
             token_hash = JWTHandler.hash_token(refresh_token)
             stored = await self._refresh_tokens.get_by_token_hash(token_hash)
@@ -269,7 +267,8 @@ class AuthService:
                 await self._sessions.revoke(session)
 
     async def logout_all(self, user_id: uuid.UUID) -> None:
-        """Revoga todas as sessões e refresh tokens do usuário (`POST /auth/logout-all`)."""
+        """Encerra todas as sessões e invalida todos os refresh tokens do usuário."""
+
         await self._refresh_tokens.revoke_all_for_user(user_id)
         await self._sessions.revoke_all_for_user(user_id)
 
@@ -279,9 +278,10 @@ class AuthService:
         """
         Inicia a recuperação de senha (`POST /auth/password/forgot`).
 
-        Sempre retorna silenciosamente (mesmo se o e-mail não existir)
-        para não vazar quais e-mails estão cadastrados (Seção 8).
+        A resposta é sempre de sucesso (mesmo se o e-mail não existir) para evitar
+        que descubram quais e-mails estão cadastrados no sistema.
         """
+
         user = await self._users.get_by_email(payload.email)
         if user is None:
             return
@@ -292,10 +292,11 @@ class AuthService:
         """
         Confirma a redefinição de senha (`POST /auth/password/reset`).
 
-        Revoga todas as sessões/refresh tokens existentes como medida de
-        segurança — uma senha pode ter sido redefinida justamente porque
-        foi comprometida.
+        Como medida de segurança, encerra todas as sessões e cancela os refresh
+        tokens antigos. Fazemos isso porque a senha pode ter sido trocada justamente
+        por ter vazado.
         """
+
         claims = JWTHandler.decode(payload.token, expected_type=TokenType.PASSWORD_RESET)
         user = await self._users.get_by_id(claims.sub)
         if user is None:

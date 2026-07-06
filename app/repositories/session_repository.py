@@ -1,8 +1,6 @@
 """
-Repositório de `Session` (sessão lógica de dispositivo/cliente).
-
-Ver nota de decisão em `refresh_token_repository.py` sobre este arquivo
-ter sido antecipado da Etapa 6 para a Etapa 4, por dependência estrutural.
+Repositório de Sessões de Usuário.
+Gerencia o ciclo de vida das sessões ativas de login nos dispositivos.
 """
 
 from __future__ import annotations
@@ -17,7 +15,7 @@ from app.models.session_model import Session
 
 
 class SessionRepository:
-    """Acesso a dados da entidade `Session`, isolado de regras de negócio."""
+    """Acesso a dados de sessões de usuário, isolado das regras de negócio."""
 
     def __init__(self, db: AsyncSession) -> None:
         self._db = db
@@ -33,7 +31,8 @@ class SessionRepository:
         return result.scalar_one_or_none()
 
     async def list_active_for_user(self, user_id: uuid.UUID) -> list[Session]:
-        """Lista sessões não revogadas de um usuário, usado por `GET /sessions`."""
+        """Lista as sessões ativas de um usuário."""
+
         stmt = (
             select(Session)
             .where(Session.user_id == user_id, Session.revoked.is_(False))
@@ -43,12 +42,14 @@ class SessionRepository:
         return list(result.scalars().all())
 
     async def revoke(self, session: Session) -> None:
-        """Revoga uma sessão específica (`DELETE /sessions/{id}`, ou logout de um dispositivo)."""
+        """Revoga uma sessão específica por ID (logout de um dispositivo)."""
+
         session.revoked = True
         await self._db.flush()
 
     async def revoke_all_for_user(self, user_id: uuid.UUID) -> None:
-        """Revoga todas as sessões de um usuário (`POST /auth/logout-all`)."""
+        """Revoga todas as sessões ativas de um usuário (logout global)."""
+
         stmt = (
             update(Session)
             .where(Session.user_id == user_id, Session.revoked.is_(False))
@@ -59,12 +60,11 @@ class SessionRepository:
 
     async def touch_last_active(self, session: Session, *, timestamp: datetime) -> None:
         """
-        Atualiza `last_active_at`.
+        Atualiza a data do último acesso da sessão.
 
-        Chamado pela camada de serviço de forma esporádica (não a cada
-        requisição autenticada) — a política de throttling dessa
-        atualização é decidida em `session_service.py` (Etapa 6), não
-        aqui.
+        Apenas executa a alteração no banco. O controle de frequência da
+        atualização para evitar lentidão é gerenciado pelo service.
         """
+
         session.last_active_at = timestamp
         await self._db.flush()

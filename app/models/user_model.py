@@ -1,11 +1,9 @@
 """
-Entidade `User` (SQLAlchemy 2.x, estilo `Mapped`/`mapped_column`).
+Modelo de Usuário.
 
-Regra de camada: este módulo contém APENAS o mapeamento ORM e validações
-triviais de integridade (ex: normalização de e-mail). Nenhuma regra de
-negócio (política de bloqueio, força de senha, etc.) vive aqui — isso é
-responsabilidade de `app/services/user_service.py` e
-`app/services/auth_service.py`.
+Responsável apenas pelo mapeamento ORM e integridade dos dados (como a
+normalização do e-mail). Regras de negócio como força de senha e bloqueios
+ficam exclusivamente na camada de serviços.
 """
 
 from __future__ import annotations
@@ -19,9 +17,8 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship, validates
 from app.database.base import Base, SoftDeleteMixin, TimestampMixin, UUIDPrimaryKeyMixin
 
 if TYPE_CHECKING:
-    # Import só avaliado por type checkers (Mypy) — evita import circular
-    # em runtime entre `user_model`, `role_model`, `refresh_token_model` e
-    # `session_model`.
+    # Evita import circular em runtime (usado apenas por type checkers).
+
     from app.models.refresh_token_model import RefreshToken
     from app.models.role_model import Role
     from app.models.session_model import Session
@@ -31,10 +28,8 @@ class User(UUIDPrimaryKeyMixin, TimestampMixin, SoftDeleteMixin, Base):
     """
     Usuário do sistema.
 
-    A exclusão de um `User` é sempre lógica (`deleted_at`, via
-    `SoftDeleteMixin`) — nunca um `DELETE` físico, para preservar
-    integridade referencial de auditoria, sessões e refresh tokens
-    históricos.
+    A exclusão é sempre lógica (`deleted_at`), evitando o DELETE físico
+    para preservar o histórico de auditoria, sessões e tokens.
     """
 
     __tablename__ = "users"
@@ -53,19 +48,11 @@ class User(UUIDPrimaryKeyMixin, TimestampMixin, SoftDeleteMixin, Base):
     )
 
     # --- Campos de MFA ---
-    #
-    # Nota de decisão (Etapa 6): a Seção 5 (modelagem de dados) NÃO lista
-    # nenhum campo de MFA na tabela `User`, mas a Seção 6 define os
-    # endpoints `POST /auth/mfa/enable` e `POST /auth/mfa/verify` como
-    # parte obrigatória do contrato da API — logicamente impossível de
-    # implementar sem persistir o secret TOTP e uma flag de "MFA ativo"
-    # em algum lugar. Adiciono os dois campos abaixo ao model já gerado
-    # na Etapa 2, já que este é um gap real da especificação, não uma
-    # preferência de design.
+    # O secret TOTP e a flag de ativação são obrigatórios para os fluxos de MFA da API.
+
     mfa_enabled: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     mfa_secret: Mapped[str | None] = mapped_column(String(64), default=None, nullable=True)
 
-    # --- Relacionamentos ---
     roles: Mapped[list[Role]] = relationship(
         secondary="user_roles",
         back_populates="users",
@@ -85,23 +72,24 @@ class User(UUIDPrimaryKeyMixin, TimestampMixin, SoftDeleteMixin, Base):
     @validates("email")
     def _normalize_email(self, _key: str, value: str) -> str:
         """
-        Normaliza o e-mail (lowercase + strip) antes de persistir.
+        Normaliza o e-mail (caixa baixa e sem espaços) antes de salvar.
 
-        Esta é uma validação trivial de integridade de dados (permitida
-        na camada `models` pela Seção 3), não uma regra de negócio —
-        regras como "e-mail já cadastrado" continuam em `user_service`.
+        Validação de integridade de dados feita diretamente no modelo.
+        Validações de negócio (como e-mail duplicado) ficam nos services.
         """
+
         if not value or "@" not in value:
             raise ValueError("E-mail inválido.")
         return value.strip().lower()
 
     @property
     def is_locked(self) -> bool:
-        """Indica se a conta está atualmente bloqueada por força bruta.
-
-        Exposta como propriedade de conveniência; a decisão de *quando*
-        bloquear/desbloquear permanece em `auth_service`.
         """
+        Indica se a conta está bloqueada por excesso de tentativas.
+        Propriedade para consulta rápida. A lógica que define o bloqueio
+        e o tempo de expiração fica exclusivamente no `auth_service`.
+        """
+
         return self.locked_until is not None and self.locked_until > datetime.now(UTC)
 
     def __repr__(self) -> str:  # pragma: no cover - apenas debug

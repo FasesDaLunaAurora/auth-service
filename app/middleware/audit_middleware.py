@@ -1,17 +1,13 @@
 """
-Auditoria de segurança (Seção 8): login, logout, alteração de senha,
-criação/alteração/exclusão de usuário, alteração de permissões,
-revogação de token, tentativas de acesso inválidas.
+Middleware de auditoria de segurança.
 
-Abordagem: este middleware infere o evento de auditoria a partir de
-**metadados de transporte** apenas (método HTTP, path normalizado,
-status code) — nunca lê o corpo da requisição/resposta, então nunca tem
-a oportunidade de logar senhas, tokens ou outros dados sensíveis
-(reforçando, na prática, a regra da Seção 8 de nunca logar segredos em
-texto puro). O `user_id` incluído no log de auditoria é extraído de
-forma best-effort do access token no header `Authorization`, apenas
-para fins de rastreabilidade — a validação "de verdade" do token
-continua sendo feita por `api/dependencies/auth_dependency.py` (Etapa 8).
+Registra logs de login, logout, troca de senha e gestão de usuários.
+Usa apenas os dados básicos da rota (método HTTP, URL e status do retorno).
+Não lê o conteúdo da requisição, garantindo que senhas e tokens fiquem
+totalmente protegidos de vazamento nos logs.
+
+Tenta extrair o `user_id` do token apenas para registrar o histórico,
+sem substituir a validação real feita pelas dependências da API.
 """
 
 from __future__ import annotations
@@ -33,14 +29,12 @@ _UUID_SEGMENT = re.compile(
     r"[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}"
 )
 
-_PREFIX = settings.API_V1_PREFIX
+_PREFIX = settings.API_VERSION_PREFIX
 
-# Nota: os paths de `roles/{id}/permissions` e `users/{id}/roles` abaixo
-# são provisórios — o contrato exato dessas rotas de atribuição (Seção 6
-# só diz "incluindo endpoints para atribuir/remover roles... e
-# permissions...", sem fixar o path) será definido em
-# `app/api/routes/role_routes.py` (Etapa 8). Se o path final divergir,
-# esta tabela deve ser ajustada em conjunto.
+# Nota: As rotas de atribuição de permissões e roles são provisórias.
+# Se os paths finais em `role_routes.py` mudarem, esta tabela deve
+# ser atualizada para manter o mapeamento correto.
+
 _AUDIT_RULES: dict[tuple[str, str], tuple[AuditAction | None, AuditAction | None]] = {
     ("POST", f"{_PREFIX}/auth/register"): (AuditAction.USER_CREATED, None),
     ("POST", f"{_PREFIX}/auth/login"): (AuditAction.LOGIN_SUCCESS, AuditAction.LOGIN_FAILURE),

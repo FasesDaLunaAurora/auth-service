@@ -1,6 +1,4 @@
-"""
-Contratos de entrada/saída para `Permission` (`/api/v1/permissions`).
-"""
+"""Schemas para o gerenciamento de permissões."""
 
 from __future__ import annotations
 
@@ -13,7 +11,7 @@ _PERMISSION_CODE_PATTERN = re.compile(r"^[a-z][a-z0-9_]*:[a-z][a-z0-9_]*$")
 
 
 class PermissionBase(BaseModel):
-    """Campos compartilhados entre criação e leitura de uma permissão."""
+    """Campos base compartilhados pelas permissões do sistema."""
 
     code: str = Field(
         ...,
@@ -27,13 +25,13 @@ class PermissionBase(BaseModel):
     @classmethod
     def _validate_code_format(cls, value: str) -> str:
         """
-        Garante que o código siga a convenção `recurso:acao`.
+        Valida se o código segue o padrão `recurso:acao`.
 
-        Esta é validação de *formato* de input (responsabilidade da
-        camada `schemas`), não uma regra de negócio — decidir se um
-        código específico pode ou não ser criado (ex: duplicidade)
-        continua em `permission_service`.
+        Isso é apenas uma checagem de formato da API (camada schemas),
+        não uma regra de negócio. Validar se o código já existe ou se
+        pode ser criado é responsabilidade do `permission_service`.
         """
+
         normalized = value.strip().lower()
         if not _PERMISSION_CODE_PATTERN.match(normalized):
             raise ValueError(
@@ -45,19 +43,23 @@ class PermissionBase(BaseModel):
 
 
 class PermissionCreate(PermissionBase):
-    """Payload de criação de uma nova permissão."""
+    """
+    Payload de criação de uma nova permissão.
+    Classe só herda por enquanto, mas pode ser estendida no futuro
+    se houver campos adicionais.
+    """
 
     pass
 
 
 class PermissionUpdate(BaseModel):
-    """Payload de atualização parcial (todos os campos opcionais)."""
+    """Campos para atualização parcial (tudo opcional)."""
 
     description: str | None = Field(default=None, max_length=500)
 
 
 class PermissionRead(PermissionBase):
-    """Representação pública de uma permissão retornada pela API."""
+    """Dados da permissão expostos publicamente pela API."""
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -65,6 +67,6 @@ class PermissionRead(PermissionBase):
 
 
 class AssignPermissionRequest(BaseModel):
-    """Payload para atribuir uma permissão existente a uma role."""
+    """Dados necessários para associar uma permissão a um perfil (role)."""
 
     permission_id: uuid.UUID

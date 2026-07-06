@@ -1,10 +1,8 @@
 """
-Rotas de autenticação (`/api/v1/auth`, Seção 6).
+Rotas de autenticação (`/api/v1/auth`).
 
-Regra de camada (Seção 3): rotas recebem a requisição HTTP, validam via
-Schema (feito automaticamente pelo FastAPI a partir da assinatura),
-chamam o `Service` correspondente e traduzem o retorno em uma
-`Response` — nenhuma regra de negócio vive aqui.
+Responsável apenas por receber o HTTP, validar o Schema pelo FastAPI e
+chamar o Service correspondente. Nenhuma regra de negócio fica aqui.
 """
 
 from __future__ import annotations
@@ -31,7 +29,7 @@ router = APIRouter(prefix="/auth", tags=["Authentication"])
 
 
 def _client_ip(request: Request) -> str:
-    """Extrai o IP do cliente, priorizando `X-Forwarded-For` (mesma lógica do middleware)."""
+    """Extrai o IP do cliente priorizando o header `X-Forwarded-For`."""
     forwarded_for = request.headers.get("X-Forwarded-For")
     if forwarded_for:
         return forwarded_for.split(",")[0].strip()

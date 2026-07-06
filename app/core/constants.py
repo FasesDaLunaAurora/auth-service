@@ -1,10 +1,8 @@
 """
-Constantes globais do domínio.
+Constantes globais do sistema.
 
-Este módulo concentra valores fixos que não dependem de configuração de
-ambiente (esses vivem em `core/config.py`). Mantê-los centralizados evita
-"magic numbers/strings" espalhados pelas camadas de serviço, segurança e
-middleware.
+Centraliza valores fixos que não mudam por ambiente (para isso, use o config.py).
+Evita o uso de magic numbers e strings espalhados pelo código.
 """
 
 from __future__ import annotations
@@ -14,7 +12,7 @@ from typing import Final
 
 
 class TokenType(StrEnum):
-    """Tipos de token emitidos pelo serviço de autenticação."""
+    """Tipos de token da autenticação."""
 
     ACCESS = "access"
     REFRESH = "refresh"
@@ -24,7 +22,7 @@ class TokenType(StrEnum):
 
 
 class AuditAction(StrEnum):
-    """Ações auditáveis registradas pelo `audit_middleware` / services."""
+    """Ações monitoradas pelo middleware de auditoria e services."""
 
     LOGIN_SUCCESS = "LOGIN_SUCCESS"
     LOGIN_FAILURE = "LOGIN_FAILURE"
@@ -51,11 +49,11 @@ class AuditAction(StrEnum):
 
 class ErrorCode(StrEnum):
     """
-    Códigos de erro estáveis retornados no corpo padronizado de erro.
+    Códigos de erro padronizados da API.
 
-    Esses códigos são contrato público da API — não devem ser renomeados
-    sem versionamento, pois clientes podem tomar decisões de UX baseados
-    neles (ex: exibir "conta bloqueada" vs "credenciais inválidas").
+    Esses códigos fazem parte do contrato público da API. Não mude os nomes
+    sem versionamento, pois o front-end/clientes usam esses valores para
+    decisões de UX (ex: tratar erro de credenciais vs conta bloqueada).
     """
 
     INVALID_CREDENTIALS = "INVALID_CREDENTIALS"
@@ -75,9 +73,8 @@ class ErrorCode(StrEnum):
     INTERNAL_ERROR = "INTERNAL_ERROR"
 
 
-# Permissões "seed" conhecidas pelo próprio código (usadas em decorators e
-# testes). Permissões adicionais podem ser criadas dinamicamente via API,
-# mas estas são consideradas estruturais ao domínio.
+# Permissões nativas (usadas em decorators e testes).
+# Permissões extras podem ser criadas via API, mas estas são estruturais.
 class PermissionCode:
     USER_LIST: Final[str] = "user:list"
     USER_READ: Final[str] = "user:read"
@@ -102,7 +99,7 @@ class PermissionCode:
     SESSION_REVOKE: Final[str] = "session:revoke"
 
 
-# Cabeçalhos de segurança aplicados globalmente pelo middleware.
+# Headers de segurança aplicados globalmente pelo middleware.
 SECURITY_HEADERS: Final[dict[str, str]] = {
     "X-Content-Type-Options": "nosniff",
     "X-Frame-Options": "DENY",
@@ -112,11 +109,10 @@ SECURITY_HEADERS: Final[dict[str, str]] = {
     "X-Permitted-Cross-Domain-Policies": "none",
 }
 
-# Header usado para correlacionar requisições nos logs estruturados.
+# Header para correlacionar as requisições nos logs estruturados.
 CORRELATION_ID_HEADER: Final[str] = "X-Request-ID"
 
-# Mensagem genérica usada para respostas de autenticação, evitando
-# enumeration attacks (não revelar se o e-mail existe ou não).
+# Mensagem genérica para evitar enumeration attacks (não revela se o e-mail existe).
 GENERIC_AUTH_ERROR_MESSAGE: Final[str] = "E-mail ou senha incorretos."
 GENERIC_PASSWORD_RESET_MESSAGE: Final[str] = (
     "Se o e-mail informado estiver cadastrado, você receberá instruções para redefinição de senha."

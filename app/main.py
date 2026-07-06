@@ -1,9 +1,9 @@
 """
-Ponto de entrada da aplicação FastAPI.
+Ponto de entrada do FastAPI.
 
-Responsável por: configurar logging, registrar handlers de exceção,
-montar a pilha de middlewares (na ordem correta) e incluir o router
-agregado da API. Nenhuma regra de negócio vive aqui.
+Configura o logging, registra os tratadores de exceção, monta a pilha
+de middlewares na ordem correta e inclui as rotas da API. Nenhuma regra
+de negócio entra aqui.
 """
 
 from __future__ import annotations
@@ -30,7 +30,7 @@ logger = get_logger(__name__)
 
 @asynccontextmanager
 async def lifespan(_app: FastAPI) -> AsyncGenerator[None, None]:
-    """Gerencia o ciclo de vida da aplicação (startup/shutdown)."""
+    """Gerencia o ciclo de vida da aplicação"""
     logger.info("application_startup", app_name=settings.APP_NAME, env=settings.APP_ENV)
     yield
     logger.info("application_shutdown")
@@ -39,7 +39,8 @@ async def lifespan(_app: FastAPI) -> AsyncGenerator[None, None]:
 
 
 def create_app() -> FastAPI:
-    """Factory da aplicação FastAPI — facilita testes (`tests/conftest.py`) e reuso."""
+    """Cria a instância do FastAPI para facilitar testes e reaproveitamento do código."""
+
     app = FastAPI(
         title="Auth Service",
         description=(
@@ -55,11 +56,10 @@ def create_app() -> FastAPI:
 
     register_exception_handlers(app)
 
-    # Ordem de montagem dos middlewares (Starlette executa o último
-    # adicionado como o mais externo): Audit e RateLimit ficam mais
-    # internos (só importam para rotas de negócio), Logging envolve tudo
-    # para medir a duração total da requisição, e CORS fica no nível
-    # mais externo, tratando preflight antes de qualquer outra lógica.
+    # A ordem aqui importa porque os middlewares rodam de baixo para cima.
+    # O CORS fica por fora de tudo para liberar os acessos logo de cara.
+    # O Logging vem em seguida para medir o tempo total da resposta.
+    # Já as travas de RateLimit e o Audit rodam por último, direto nas rotas.
     app.add_middleware(AuditMiddleware)
     app.add_middleware(RateLimitMiddleware)
     app.add_middleware(LoggingMiddleware)
@@ -73,20 +73,17 @@ def create_app() -> FastAPI:
 
     app.include_router(api_router)
 
-    @app.get(f"{settings.API_V1_PREFIX}/health", tags=["Health"], summary="Health check")
+    @app.get(f"{settings.API_VERSION_PREFIX}/health", tags=["Health"], summary="Health check")
     async def health_check() -> dict[str, str]:
         """
-        Endpoint de health check, usado pelo `HEALTHCHECK` do Docker e por
-        orquestradores (Kubernetes, ECS, etc).
+        Rota de health check para o Docker ou orquestradores (Kubernetes, ECS).
 
-        Não faz parte do contrato de endpoints da Seção 6 (que não define
-        nenhuma rota de health check), mas é uma necessidade operacional
-        padrão para qualquer serviço "pronto para produção" — por isso
-        não exige autenticação nem acessa o banco/Redis (um health check
-        que depende de infraestrutura externa pode causar reinícios em
-        cascata caso o Postgres/Redis fiquem temporariamente
-        indisponíveis).
+        Essa rota é uma necessidade padrão para monitorar a saúde da aplicação.
+        Ela não exige login e não faz consultas ao banco ou Redis. Se o health check
+        depender de serviços externos, uma instabilidade temporária no banco poderia
+        derrubar o container sem real necessidade.
         """
+
         return {"status": "ok"}
 
     return app

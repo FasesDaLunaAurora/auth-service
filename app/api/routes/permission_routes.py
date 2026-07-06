@@ -1,6 +1,4 @@
-"""
-Rotas de permissões (`/api/v1/permissions`, Seção 6) — CRUD completo.
-"""
+"""Rotas para o CRUD completo de permissões (`/api/v1/permissions`)."""
 
 from __future__ import annotations
 

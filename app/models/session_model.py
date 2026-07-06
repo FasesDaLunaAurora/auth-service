@@ -1,10 +1,9 @@
 """
-Entidade `Session`.
+Modelo de Sessão de Usuário.
 
-Representa uma sessão lógica de um usuário autenticado em um dispositivo
-específico (não confundir com sessão de banco de dados). Cada login bem
-sucedido cria uma `Session`; `GET /sessions` e `DELETE /sessions/{id}`
-(Seção 6) operam sobre esta entidade.
+Representa o login ativo de um usuário em um dispositivo específico
+(não confundir com a sessão do banco de dados). É a tabela usada para
+listar e derrubar acessos ativos.
 """
 
 from __future__ import annotations
@@ -24,11 +23,10 @@ if TYPE_CHECKING:
 
 class Session(UUIDPrimaryKeyMixin, Base):
     """
-    Sessão de dispositivo/cliente associada a um usuário.
+    Sessão ativa de um usuário em um dispositivo.
 
-    `last_active_at` é atualizado pela camada de serviço a cada uso
-    válido do access token associado (não a cada requisição HTTP, para
-    evitar overhead de escrita — decisão registrada no changelog).
+    O campo `last_active_at` é atualizado ao validar o token para registrar
+    o histórico de uso, evitando overhead de gravação no banco a cada requisição.
     """
 
     __tablename__ = "sessions"

@@ -1,9 +1,9 @@
 """
-Testes unitários de `OAuth2Handler` — a abstração genérica de fluxo
-Authorization Code (Etapa 5). Como não há nenhum provider concreto
-conectado ainda (ver nota de decisão em `oauth2_handler.py`), os testes
-usam uma configuração fictícia e mockam as chamadas HTTP via
-`unittest.mock`, sem bater em nenhum serviço externo real.
+Testes unitários do `OAuth2Handler`.
+
+Valida a estrutura genérica do fluxo Authorization Code. Como os provedores
+reais ainda não foram configurados, os testes usam dados fictícios e simulam
+as chamadas HTTP (mock) para não depender de nenhum serviço externo.
 """
 
 from __future__ import annotations

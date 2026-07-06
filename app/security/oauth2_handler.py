@@ -1,20 +1,12 @@
 """
-Handler de domínio para o fluxo OAuth2 Authorization Code (login social).
+Gerencia o fluxo de OAuth2 Authorization Code para login social.
 
-Nota de decisão: a Seção 6 (contrato de endpoints) não define nenhuma
-rota `/auth/oauth/*` concreta, apenas a tabela da Seção 3 menciona
-"OAuth2" como responsabilidade da camada `security`. Sem um provider
-específico (Google, GitHub, etc.) definido na especificação, implemento
-aqui uma abstração **genérica e reutilizável** do fluxo Authorization
-Code (RFC 6749) — cada provider concreto (quando necessário) vira uma
-pequena configuração em `app/integrations/oauth_providers/`, sem
-duplicar a lógica de troca de código por token.
+Como a especificação não detalha os provedores (Google, GitHub, etc.), criei
+uma estrutura genérica. Novos provedores entram em `app/integrations/oauth_providers/`
+apenas como configuração, sem repetir código.
 
-Uso de `httpx`: a especificação lista `httpx` apenas na categoria
-"Testes" (Seção 2). Reaproveito a mesma biblioteca aqui para as
-chamadas HTTP ao provider OAuth (troca de código, userinfo) em vez de
-introduzir uma dependência nova (ex: `authlib`) — é uma extensão do uso
-de uma lib já aprovada, não uma substituição de tecnologia da Seção 2.
+Reaproveitei o `httpx` (indicado para testes) para fazer as chamadas HTTP de
+troca de código e perfil, evitando instalar novas bibliotecas (como authlib).
 """
 
 from __future__ import annotations
@@ -27,18 +19,17 @@ import httpx
 
 
 class OAuth2ExchangeError(Exception):
-    """Levantada quando a troca do `authorization_code` pelo token falha no provider."""
+    """Erro lançado quando o provedor falha em trocar o authorization_code pelo token."""
 
 
 @dataclass(frozen=True, slots=True)
 class OAuth2ProviderConfig:
     """
-    Configuração de um provider OAuth2 externo.
+    Configuração de um provedor OAuth2 externo.
 
-    Instâncias concretas (ex: Google, GitHub) são construídas em
-    `app/integrations/oauth_providers/` a partir de variáveis de
-    ambiente específicas do provider — este handler não conhece
-    nenhum provider por nome.
+    As instâncias (como Google ou GitHub) são criadas dinamicamente com
+    base nas variáveis de ambiente. Este gerenciador não possui nomes de
+    provedores fixos no código.
     """
 
     name: str
@@ -52,21 +43,23 @@ class OAuth2ProviderConfig:
 
 
 class OAuth2Handler:
-    """Fachada de fluxo Authorization Code, agnóstica de provider específico."""
+    """Interface para o fluxo Authorization Code, independente do provedor usado."""
 
     @staticmethod
     def generate_state() -> str:
         """
-        Gera um valor `state` (CSRF token do fluxo OAuth2) criptograficamente
-        seguro. O chamador (`auth_service`) é responsável por persistir/
-        comparar este valor (ex: em Redis com TTL curto) para validar o
-        callback — este handler apenas gera o valor.
+        Gera um token `state` seguro contra ataques CSRF no fluxo OAuth2.
+
+        O `auth_service` deve salvar e validar esse token (ex: no Redis com TTL curto).
+        Este método apenas gera o valor.
         """
+
         return secrets.token_urlsafe(32)
 
     @staticmethod
     def build_authorization_url(config: OAuth2ProviderConfig, *, state: str) -> str:
-        """Monta a URL de redirecionamento para a tela de consentimento do provider."""
+        """Cria a URL de redirecionamento para a tela de login/consentimento do provedor."""
+
         params = {
             "client_id": config.client_id,
             "redirect_uri": config.redirect_uri,
@@ -79,13 +72,12 @@ class OAuth2Handler:
     @staticmethod
     async def exchange_code_for_token(config: OAuth2ProviderConfig, *, code: str) -> dict[str, str]:
         """
-        Troca o `authorization_code` recebido no callback por um access
-        token do provider externo.
+        Troca o `authorization_code` do callback pelo access token do provedor.
 
-        Erros de rede ou resposta não-2xx são traduzidos para
-        `OAuth2ExchangeError` — este handler nunca propaga exceções de
-        `httpx` diretamente para a camada de `services`.
+        Qualquer erro de rede ou resposta inválida gera um `OAuth2ExchangeError`.
+        Exceções do `httpx` nunca são propagadas direto para os services.
         """
+
         payload = {
             "grant_type": "authorization_code",
             "code": code,
@@ -109,7 +101,7 @@ class OAuth2Handler:
 
     @staticmethod
     async def fetch_user_info(config: OAuth2ProviderConfig, *, access_token: str) -> dict[str, str]:
-        """Busca as informações básicas do usuário (e-mail, nome) no provider externo."""
+        """Busca as informações básicas do usuário (e-mail, nome) no provedor externo."""
         try:
             async with httpx.AsyncClient(timeout=10.0) as client:
                 response = await client.get(

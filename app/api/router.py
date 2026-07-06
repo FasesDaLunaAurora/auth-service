@@ -1,7 +1,4 @@
-"""
-Agregador de todas as rotas da API sob o prefixo versionado
-(`API_V1_PREFIX`, Seção 6).
-"""
+"""Centraliza todas as rotas da API sob o prefixo versionado (`API_VERSION_PREFIX`)."""
 
 from __future__ import annotations
 
@@ -16,7 +13,7 @@ from app.api.routes import (
 )
 from app.core.config import settings
 
-api_router = APIRouter(prefix=settings.API_V1_PREFIX)
+api_router = APIRouter(prefix=settings.API_VERSION_PREFIX)
 
 api_router.include_router(auth_routes.router)
 api_router.include_router(user_routes.router)

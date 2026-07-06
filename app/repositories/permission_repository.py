@@ -1,7 +1,6 @@
 """
-Repositório de `Permission`.
-
-Contém apenas operações de persistência sobre a entidade `Permission`.
+Repositório de Permissões.
+Gerencia exclusivamente as consultas e a persistência da tabela de permissões.
 """
 
 from __future__ import annotations
@@ -15,7 +14,7 @@ from app.models.permission_model import Permission
 
 
 class PermissionRepository:
-    """Acesso a dados da entidade `Permission`, isolado de regras de negócio."""
+    """Acesso a dados de permissões, isolado das regras de negócio."""
 
     def __init__(self, db: AsyncSession) -> None:
         self._db = db
@@ -31,7 +30,8 @@ class PermissionRepository:
         return result.scalar_one_or_none()
 
     async def get_by_codes(self, codes: list[str]) -> list[Permission]:
-        """Busca múltiplas permissões por código de uma vez (usado em seeds/testes)."""
+        """Busca várias permissões pelos seus códigos em uma única consulta."""
+
         normalized = [c.strip().lower() for c in codes]
         stmt = select(Permission).where(Permission.code.in_(normalized))
         result = await self._db.execute(stmt)
@@ -57,11 +57,10 @@ class PermissionRepository:
 
     async def delete(self, permission: Permission) -> None:
         """
-        Exclusão física.
-
-        Mesma decisão aplicada a `Role`: a especificação não define
-        exclusão lógica para `Permission` na Seção 5.
+        Remove a permissão fisicamente do banco de dados.
+        Seguindo o mapeamento do sistema, permissões não utilizam exclusão lógica.
         """
+
         await self._db.delete(permission)
         await self._db.flush()
 

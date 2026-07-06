@@ -1,11 +1,11 @@
 """
-Contratos de entrada/saída para `User` (`/api/v1/users`).
+Schemas de entrada e saída para as rotas de usuários (`/api/v1/users`).
 
-A função `validate_password_strength` é definida aqui (não em
-`auth_schema.py`) porque senha é, conceitualmente, um atributo de `User`
-— ela é reimportada por `auth_schema.py` nos payloads de registro e
-redefinição de senha, evitando duplicar a regra de formato em dois
-arquivos.
+A função `validate_password_strength` fica aqui porque a senha é um
+atributo do usuário. O `auth_schema.py` reimporta essa função para os
+payloads de cadastro e reset de senha, evitando duplicar a regra de
+validação. Nunca deve existir um módulo `utils`, tudo deve estar dentro
+de um schema ou função específico.
 """
 
 from __future__ import annotations
@@ -25,14 +25,14 @@ _HAS_DIGIT = re.compile(r"\d")
 
 def validate_password_strength(value: str) -> str:
     """
-    Valida o *formato* mínimo de uma senha em texto puro recebida via API.
+    Valida o formato mínimo de uma senha em texto puro enviada para a API.
 
-    Esta validação é de forma/entrada (permitida na camada `schemas`
-    pela Seção 3) — ela roda antes do valor chegar à camada de `Service`,
-    que é quem efetivamente faz o hashing (`password_handler.py`,
-    Etapa 5). Nenhuma regra de negócio sobre políticas de senha
-    corporativa (histórico, expiração, etc.) vive aqui.
+    Essa é uma checagem de entrada (camada schemas), rodando antes do valor
+    chegar na camada Service. O hash da senha em si acontece depois no
+    `password_handler.py`. Regras de negócio complexas (como histórico ou
+    expiração) não entram aqui.
     """
+
     if len(value) < _PASSWORD_MIN_LENGTH:
         raise ValueError(f"A senha deve ter ao menos {_PASSWORD_MIN_LENGTH} caracteres.")
     if not _HAS_LETTER.search(value) or not _HAS_DIGIT.search(value):
@@ -49,12 +49,12 @@ class UserBase(BaseModel):
 
 class UserCreate(UserBase):
     """
-    Payload interno de criação de usuário.
+    Payload interno para criação de usuário.
 
-    Não é exposto diretamente como rota própria (a especificação só
-    define criação via `POST /auth/register` — Seção 6); este schema é
-    reutilizado por `auth_schema.RegisterRequest` para não duplicar
-    `email`/`full_name`/`password`.
+    Não é usado direto em uma rota própria, já que a criação acontece via
+    `POST /auth/register`. Este schema serve para ser reaproveitado por
+    `auth_schema.RegisterRequest`, evitando duplicar os campos `email`,
+    `full_name` e `password`.
     """
 
     password: str = Field(..., min_length=_PASSWORD_MIN_LENGTH, max_length=128)
@@ -66,7 +66,7 @@ class UserCreate(UserBase):
 
 
 class UserRead(UserBase):
-    """Representação pública de um usuário, retornada por endpoints de leitura."""
+    """Aqui sim, temos os dados públicos do usuário retornados pelas rotas de leitura."""
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -80,21 +80,20 @@ class UserRead(UserBase):
 
 
 class UserUpdateMe(BaseModel):
-    """Payload de `PATCH /users/me` — o próprio usuário só altera seu perfil básico."""
+    """Campos para o `PATCH /users/me`, onde o usuário edita o próprio perfil básico."""
 
     full_name: str | None = Field(default=None, min_length=2, max_length=255)
 
 
 class UserAdminUpdate(BaseModel):
     """
-    Payload de `PATCH /users/{id}` — atualização administrativa.
+    Campos do `PATCH /users/{id}` para atualização via admin.
 
-    Não inclui `is_superuser` diretamente editável por este endpoint
-    genérico: elevar privilégios de superusuário é sensível demais para
-    ser um campo opcional silencioso em um PATCH — a especificação não
-    define uma rota dedicada para isso, então optei por deixar essa
-    elevação fora do escopo automático (decisão registrada no
-    changelog); pode ser adicionada como rota explícita se necessário.
+    O campo `is_superuser` ficou de fora porque dar permissão de superusuário
+    é algo muito crítico para rodar em um PATCH genérico. Como não há uma rota
+    específica na especificação, deixei essa alteração de fora por enquanto
+    (está anotado no changelog). Se precisar, dá para criar um endpoint só
+    para isso depois.
     """
 
     full_name: str | None = Field(default=None, min_length=2, max_length=255)
@@ -102,7 +101,7 @@ class UserAdminUpdate(BaseModel):
 
 
 class ChangePasswordRequest(BaseModel):
-    """Payload de `PATCH /users/me/password`."""
+    """Campos para alteração de senha em `PATCH /users/me/password`."""
 
     current_password: str = Field(..., min_length=1)
     new_password: str = Field(..., min_length=_PASSWORD_MIN_LENGTH, max_length=128)
@@ -123,7 +122,7 @@ class ChangePasswordRequest(BaseModel):
 
 
 class UserListResponse(BaseModel):
-    """Envelope de paginação para `GET /users`."""
+    """Estrutura de paginação para o `GET /users`."""
 
     items: list[UserRead]
     total: int = Field(..., ge=0)

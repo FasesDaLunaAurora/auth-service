@@ -30,7 +30,7 @@ Este guia cobre tudo que você precisa para rodar, testar e contribuir com o pro
 
 ## Pré-requisitos
 
-O projeto roda **exclusivamente em containers** — não há suporte a instalação local do Python/PostgreSQL/Redis direto no sistema operacional. Isso garante que o ambiente de qualquer pessoa (independente de sistema operacional ou versões instaladas) seja idêntico ao de produção.
+O projeto roda **exclusivamente em containers**,  não há suporte a instalação local do Python/PostgreSQL/Redis direto no sistema operacional. Isso garante que o ambiente de qualquer pessoa (independente de sistema operacional ou versões instaladas) seja idêntico ao de produção.
 
 Escolha **uma** das três opções abaixo, dependendo do seu sistema:
 
@@ -80,7 +80,7 @@ pip install podman-compose
 
 **Duas particularidades do `podman-compose` para ficar de olho** (testado na versão 1.6.0):
 
-1. **`profiles:` pode não ser respeitado** — o serviço `test` usa `profiles: [test]` justamente para não subir junto no `up` normal. Se ele subir mesmo assim, pare-o manualmente (`podman-compose stop test`) ou suba só os serviços que quer, nomeando-os: `podman-compose up --build db redis migrate app`.
+1. **`profiles:` pode não ser respeitado**, o serviço `test` usa `profiles: [test]` justamente para não subir junto no `up` normal. Se ele subir mesmo assim, pare-o manualmente (`podman-compose stop test`) ou suba só os serviços que quer, nomeando-os: `podman-compose up --build db redis migrate app`.
 2. **`depends_on: condition: service_healthy` pode ser menos confiável** que no Docker Compose — se `migrate`/`app` tentarem subir antes do Postgres/Redis estarem prontos, suba o banco primeiro e aguarde alguns segundos:
    ```powershell
    podman-compose up -d db redis
@@ -88,11 +88,11 @@ pip install podman-compose
    podman-compose up --build migrate app
    ```
 
-Se encontrar outro comportamento diferente do documentado aqui, é provável que seja particularidade de versão do `podman-compose` — vale registrar como *issue* no repositório.
+Se encontrar outro comportamento diferente do documentado aqui, é provável que seja particularidade de versão do `podman-compose`,  vale registrar como *issue* no repositório.
 
 ### Configurando autocomplete no editor (opcional)
 
-Como o projeto roda inteiramente em container, seu sistema operacional não tem `fastapi`, `sqlalchemy` e as demais dependências instaladas — então seu editor (VS Code, PyCharm, etc.) provavelmente vai mostrar avisos do tipo `Import "fastapi" could not be resolved`. **Isso não afeta a aplicação rodando** — é só o editor não tendo onde procurar as bibliotecas para autocomplete/checagem de tipos.
+Como o projeto roda inteiramente em container, seu sistema operacional não tem `fastapi`, `sqlalchemy` e as demais dependências instaladas, então seu editor (VS Code, PyCharm, etc.) provavelmente vai mostrar avisos do tipo `Import "fastapi" could not be resolved`. **Isso não afeta a aplicação rodando** — é só o editor não tendo onde procurar as bibliotecas para autocomplete/checagem de tipos.
 
 Se quiser eliminar esses avisos, crie um ambiente virtual **só para o editor usar como referência** — ele nunca roda a aplicação nem se conecta a nada, é puramente para o autocomplete conseguir ler as bibliotecas:
 
@@ -325,7 +325,7 @@ Pontos importantes:
 | `APP_ENV` | Não | `development` | `development`, `staging`, `production` ou `test`. Em `production`, `/docs`/`/redoc`/`/openapi.json` ficam desativados. |
 | `APP_DEBUG` | Não | `false` | Ativa logs mais verbosos. |
 | `APP_HOST` / `APP_PORT` | Não | `0.0.0.0` / `8000` | Endereço em que o Uvicorn escuta. |
-| `API_V1_PREFIX` | Não | `/api/v1` | Prefixo de todas as rotas versionadas. |
+| `API_VERSION_PREFIX` | Não | `/api/v1` | Prefixo de todas as rotas versionadas. |
 | `DATABASE_URL` | **Sim** | — | URL assíncrona do Postgres: `postgresql+asyncpg://usuario:senha@host:5432/banco`. |
 | `DATABASE_POOL_SIZE` / `DATABASE_MAX_OVERFLOW` / `DATABASE_POOL_TIMEOUT_SECONDS` | Não | `10` / `20` / `30` | Tuning do pool de conexões. |
 | `DATABASE_ECHO` | Não | `false` | Se `true`, loga todo SQL executado. |
